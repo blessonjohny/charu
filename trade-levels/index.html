@@ -1245,6 +1245,21 @@ async function tdGet(url){
   if(!j||j.status==="error"||!j.values){var er=new Error((j&&j.message)||"No data returned");er.code=j&&j.code;throw er}
   return j.values.slice().reverse();
 }
+/* Pull the longest daily history the key allows: newest 5000 bars, then older chunks, up to 6 requests */
+async function fetchDaily(sym,key){
+  var all=[],end="",pages=0;
+  while(pages<6){
+    var page;
+    try{page=await tdGet(tdUrl(sym,"1day",5000,key)+(end?"&end_date="+end:""))}catch(e){if(pages===0)throw e;break}
+    if(!page.length)break;
+    all=page.concat(all);
+    pages++;
+    var first=String(page[0].datetime).slice(0,10);
+    end=new Date(Date.parse(first+"T00:00:00Z")-86400000).toISOString().slice(0,10);
+    if(page.length<5000)break;
+  }
+  return all;
+}
 async function fetchAll(){
   var sym=($("ticker").value||"").trim().toUpperCase(), key=($("apikey").value||"").trim();
   if(!sym){fstat("Type a ticker first.",true);return}
@@ -1252,11 +1267,12 @@ async function fetchAll(){
   try{localStorage.setItem(KEYN,key)}catch(e){}
   var btn=$("fetch");btn.disabled=true;fstat("Getting "+sym+" daily prices...");
   try{
-    var d=await tdGet(tdUrl(sym,"1day",400,key));
+    var d=await fetchDaily(sym,key);
     var nb=d.map(function(v){return {t:Date.parse(String(v.datetime).slice(0,10)+"T00:00:00Z"),h:+v.high,l:+v.low,c:+v.close}}).filter(function(b){return isFinite(b.t)&&isFinite(b.h)&&isFinite(b.l)&&isFinite(b.c)});
     if(nb.length<30) throw new Error("Only "+nb.length+" days came back for "+sym+".");
+    var yrs=nb.length?(nb[nb.length-1].t-nb[0].t)/(365.25*864e5):0;
     bars=nb;isExample=false;fileName="Twelve Data (may be delayed)";showMsg("msg","");renderAll();
-    fstat("Daily prices loaded. Getting "+sym+" 5-minute prices...");
+    fstat("Daily prices loaded: "+nb.length+" trading days, about "+yrs.toFixed(1)+" years, back to "+dt(nb[0].t)+". Getting "+sym+" 5-minute prices...");
     try{
       var iv=await tdGet(tdUrl(sym,"5min",5000,key,"America/New_York")),re=/(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/,out=[];
       iv.forEach(function(v){var mt=String(v.datetime).match(re);if(!mt)return;var o=+v.open,h=+v.high,l=+v.low,c=+v.close;
