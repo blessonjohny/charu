@@ -1,0 +1,1291 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0c1319">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Trade Levels">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Trade Levels</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: phone-first single column. Stock picker on top, four tabs (Summary, Times, Levels, Learn), one panel visible at a time. */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#14202b; --muted:#566878; --line:#dde3e9; --tint:#e8f1f5;
+  --accent:#0b6e8a; --buy:#13795b; --sell:#c2410c; --stop:#b42318; --warn:#9a6700;
+  --buyTint:#e3f4ec; --sellTint:#fdeadf; --warnTint:#fbf0d6; --stopTint:#fde7e4;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1319; --surface:#131d26; --ink:#e6edf3; --muted:#92a3b3; --line:#243444; --tint:#17303c;
+    --accent:#4fb8d6; --buy:#3fcf9b; --sell:#ff9b6b; --stop:#ff7a6b; --warn:#e5a93d;
+    --buyTint:#12302a; --sellTint:#38241a; --warnTint:#33290f; --stopTint:#3a1d1a; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1319; --surface:#131d26; --ink:#e6edf3; --muted:#92a3b3; --line:#243444; --tint:#17303c;
+  --accent:#4fb8d6; --buy:#3fcf9b; --sell:#ff9b6b; --stop:#ff7a6b; --warn:#e5a93d;
+  --buyTint:#12302a; --sellTint:#38241a; --warnTint:#33290f; --stopTint:#3a1d1a; color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;margin:0;
+  padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:20;background:var(--bg)}
+main{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-size:24px;font-weight:600;margin:0;letter-spacing:-.01em}
+h2{font-size:12px;font-weight:600;margin:0 0 8px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+h3{font-size:17px;font-weight:600;margin:0}
+p{margin:0}
+.sub{color:var(--muted);font-size:15px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.stack{display:flex;flex-direction:column;gap:14px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+input[type=text],input[type=number]{font:inherit;font-family:var(--mono);font-size:16px;color:var(--ink);background:var(--bg);
+  border:1px solid var(--line);border-radius:8px;padding:11px 12px;width:100%;min-width:0;min-height:46px}
+input:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{font:inherit;font-weight:600;font-size:16px;color:var(--surface);background:var(--accent);border:0;border-radius:8px;padding:0 16px;min-height:46px;cursor:pointer;width:100%}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn:disabled{opacity:.6}
+.row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+.row .btn{width:auto;min-width:120px}
+.status{border-radius:8px;padding:10px 12px;font-size:14px;background:var(--tint);border:1px solid var(--line)}
+.status.ex{background:var(--warnTint);border-color:var(--warn)}
+.status+.status{margin-top:8px}
+.msg{font-size:14px;margin-top:8px}
+.msg.bad{color:var(--stop)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+details{font-size:15px}
+summary{cursor:pointer;color:var(--accent);font-weight:600;min-height:44px;display:flex;align-items:center}
+details>*:not(summary){margin-top:8px}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;margin:8px 0}
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);padding-block:6px;display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.tabs button{font:inherit;font-size:13px;font-weight:600;min-height:46px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;padding:0 4px}
+.tabs button[aria-selected=true]{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.pill.buy{color:var(--buy)}.pill.sell{color:var(--sell)}.pill.warn{color:var(--warn)}.pill.stop{color:var(--stop)}.pill.mute{color:var(--muted)}
+.ex-tag{font-size:11px;font-weight:600;color:var(--warn);border:1px solid var(--warn);border-radius:99px;padding:1px 8px;margin-left:8px;vertical-align:middle;letter-spacing:.04em}
+/* verdict */
+.verdict{border-radius:10px;padding:14px}
+.verdict .big{font-size:20px;font-weight:600;margin:4px 0}
+.verdict.buy{background:var(--buyTint)}.verdict.warn{background:var(--warnTint)}.verdict.stop{background:var(--stopTint)}
+.verdict .pill{background:var(--surface)}
+/* buy / sell blocks */
+.bs{display:grid;grid-template-columns:76px 1fr;gap:12px;padding:14px;border-radius:10px;margin-top:10px}
+.bs.buy{background:var(--buyTint)}.bs.sell{background:var(--sellTint)}
+.bs .tag{font-weight:600;font-size:15px;letter-spacing:.04em;align-self:start;padding:6px 0;text-align:center;border-radius:6px;background:var(--surface)}
+.bs.buy .tag{color:var(--buy)}.bs.sell .tag{color:var(--sell)}
+.bs .big{font-family:var(--mono);font-size:19px;font-weight:500;line-height:1.3}
+.bs p{font-size:14.5px;margin-top:4px}
+.bs p.small{color:var(--muted);font-size:13.5px}
+.note{font-size:14px;color:var(--muted)}
+.statbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.statbox .k{font-size:12.5px;color:var(--muted)}
+.statbox .v{font-family:var(--mono);font-size:20px;font-weight:500;margin:2px 0}
+.statbox .s{font-size:12.5px;color:var(--muted)}
+/* stats */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat .k{font-size:12.5px;color:var(--muted)}
+.stat .v{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums}
+.stat .s{font-size:12.5px;color:var(--muted);line-height:1.35}
+/* segmented */
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:14px;font-weight:500;min-height:44px;background:transparent;color:var(--muted);border:0;padding:0 4px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--surface)}
+/* period table */
+.per{display:grid;grid-template-columns:78px 1fr 1fr;gap:0;font-size:14px}
+.per>div{padding:9px 6px 9px 0;border-top:1px solid var(--line);font-family:var(--mono);font-size:13px}
+.per>div.h{font-family:var(--sans);font-size:12px;color:var(--muted);border-top:0;font-weight:600}
+.per>div.p{font-family:var(--sans);font-size:14px;font-weight:500}
+.per .b{color:var(--buy)}.per .s{color:var(--sell)}
+/* slot rows */
+.slot{display:grid;grid-template-columns:92px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--line);align-items:center}
+.slot .t{font-family:var(--mono);font-size:13px;line-height:1.25}
+.slot .t small{display:block;color:var(--muted);font-family:var(--sans);font-size:11.5px}
+.bar{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-family:var(--mono);min-height:18px}
+.bar i{display:block;height:9px;border-radius:5px;min-width:2px}
+.bar.lo i{background:var(--buy)}.bar.hi i{background:var(--sell)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:6px}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+/* day cards */
+.day{border-top:1px solid var(--line);padding:12px 0}
+.day .hd{display:flex;justify-content:space-between;gap:8px;font-weight:600;font-size:15px}
+.day .ln{display:flex;justify-content:space-between;gap:8px;font-size:14px;margin-top:4px}
+.day .ln span:last-child{font-family:var(--mono);text-align:right}
+.day .lo{color:var(--buy)}.day .hi{color:var(--sell)}
+.day .nt{font-size:13px;color:var(--muted);margin-top:6px}
+/* plan cards */
+.plan header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.plan .why{color:var(--muted);font-size:14.5px;margin-bottom:8px}
+.lv{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:10px 0;border-top:1px solid var(--line);align-items:baseline}
+.lv .n{font-weight:500;font-size:15px}
+.lv .d{grid-column:1;font-size:13px;color:var(--muted);line-height:1.35}
+.lv .x{grid-column:2;grid-row:1/span 2;font-family:var(--mono);font-size:18px;text-align:right}
+.lv.buy .x{color:var(--buy)}.lv.stop .x{color:var(--stop)}.lv.sell .x{color:var(--sell)}
+.chartbox{width:100%;height:280px}
+.chart2{width:100%;height:210px}
+canvas{width:100%;height:100%;display:block}
+.chartbar{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+/* learn */
+.gl dt{font-weight:600;margin-top:12px}
+.gl dd{margin:2px 0 0;color:var(--muted);font-size:15px}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:15.5px}
+.warnbox{background:var(--warnTint);border-radius:10px;padding:14px;font-size:14.5px}
+.cw{width:100%;position:relative}
+.cw canvas{width:100%;height:100%;display:block}
+select{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:0 12px;min-height:46px;width:100%}
+textarea{width:100%;min-height:200px;font-family:var(--mono);font-size:12.5px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px}
+.aiout{white-space:pre-wrap;background:var(--tint);border-radius:10px;padding:12px;font-size:15px;margin-top:10px}
+.gauge{position:relative;height:10px;border-radius:6px;background:linear-gradient(90deg,var(--buyTint),var(--warnTint),var(--sellTint));border:1px solid var(--line);margin:22px 0 4px}
+.gauge i{position:absolute;top:-7px;width:4px;height:22px;border-radius:2px;background:var(--ink);transform:translateX(-2px)}
+.gl2{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.cap{font-size:13.5px;color:var(--muted);margin-top:6px}
+.prog{height:8px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:8px}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.tc{border-top:1px solid var(--line);padding:12px 0}
+.tc-h{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:baseline}
+.tc-h .rk{color:var(--muted);font-size:13px;font-family:var(--mono)}
+.tc-h .sym{font-family:var(--mono);font-size:18px}
+.tc-h .px{font-family:var(--mono);font-size:15px}
+.scb{height:6px;border-radius:4px;background:var(--line);margin:6px 0 0 42px;overflow:hidden}
+.scb i{display:block;height:100%;background:var(--accent)}
+.tc-b{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.tc-b div{border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.35}
+.tc-b .b{background:var(--buyTint)}.tc-b .s{background:var(--sellTint)}
+.tc-b b{display:block;font-size:11.5px;letter-spacing:.05em}
+.tc-b .b b{color:var(--buy)}.tc-b .s b{color:var(--sell)}
+.tc-b span{font-family:var(--mono);font-size:13px}
+.trk{position:relative;height:14px;margin:8px 0 2px;border-radius:7px;background:var(--line)}
+.trk i{position:absolute;top:2px;width:10px;height:10px;border-radius:50%;transform:translateX(-5px)}
+.trk i.g{background:var(--buy)}.trk i.o{background:var(--sell)}
+.tc-n{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.4}
+.tc .btn{margin-top:8px;min-height:40px;font-size:14px}
+[hidden]{display:none!important}
+@media (min-width:640px){.stats{grid-template-columns:repeat(4,1fr)}}
+</style>
+
+<main>
+  <header class="stack" style="gap:6px">
+    <h1>Trade Levels</h1>
+    <p class="sub">See when a stock is usually cheap (a time to buy), when it is usually expensive (a time to sell), and which prices to use. Made for beginners.</p>
+  </header>
+
+  <section class="panel" aria-label="Choose a stock">
+    <div class="row">
+      <label for="ticker">Stock ticker<input id="ticker" type="text" value="AA" maxlength="8" autocapitalize="characters" autocomplete="off" spellcheck="false"></label>
+      <button class="btn" id="fetch" type="button">Get prices</button>
+    </div>
+    <p id="fstat" class="msg" role="status" hidden></p>
+    <div style="margin-top:12px">
+      <div id="banner" class="status ex"></div>
+      <div id="banner2" class="status ex"></div>
+    </div>
+    <details id="setup" style="margin-top:6px">
+      <summary>Data and settings</summary>
+      <label for="apikey">Data key (free, from twelvedata.com)<input id="apikey" type="text" placeholder="paste your key" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
+      <p class="note">Sign up free at twelvedata.com (no card, 800 requests a day), paste the key once, then tap Get prices. It loads about 400 days of daily prices and about 60 days of 5-minute prices. Prices on the free plan can be delayed up to 15 minutes. This works when the page is opened in Chrome or Safari. Claude's built-in preview blocks it; use the file buttons below there.</p>
+      <div class="grid2">
+        <div><input id="file" type="file" accept=".csv,text/csv,text/plain" hidden><button class="btn ghost" id="load" type="button">Load daily CSV</button></div>
+        <div><input id="file2" type="file" accept=".csv,text/csv,text/plain" hidden><button class="btn ghost" id="load2" type="button">Load 5-min CSV</button></div>
+      </div>
+      <p id="msg" class="msg bad" role="status" hidden></p>
+      <p id="msg2" class="msg bad" role="status" hidden></p>
+      <div class="grid2">
+        <label for="account">Your account size ($)<input id="account" type="number" inputmode="decimal" value="4300" min="0"></label>
+        <label for="riskpct">Most you'll risk per trade (%)<input id="riskpct" type="number" inputmode="decimal" value="1" min="0.1" max="10" step="0.1"></label>
+        <label for="entry">Price you paid (if you own it)<input id="entry" type="number" inputmode="decimal" placeholder="e.g. 36.50" step="0.01"></label>
+        <label for="shares">Shares you own<input id="shares" type="number" inputmode="decimal" placeholder="e.g. 63" step="1"></label>
+      </div>
+      <div class="grid2">
+        <label for="t0">Day starts<input id="t0" type="text" value="09:30" inputmode="numeric" maxlength="5"></label>
+        <label for="t1">Day ends<input id="t1" type="text" value="16:00" inputmode="numeric" maxlength="5"></label>
+      </div>
+      <label for="bk">Time slot size (minutes)<input id="bk" type="number" value="30" min="5" max="60" step="5"></label>
+      <p class="note">US stocks trade 9:30 AM to 4:00 PM New York time. Change "Day starts" and "Day ends" to include earlier or later trading.</p>
+      <details>
+        <summary>No key? Get 5-minute prices with Python</summary>
+        <p class="note">This writes a file the "Load 5-min CSV" button can read, already in New York time. I could not run it from here, so if it errors, send me the message.</p>
+<pre>pip install yfinance
+
+import yfinance as yf
+df = yf.download("AA", period="1mo", interval="5m", auto_adjust=False)
+df.columns = df.columns.get_level_values(0)
+df.index = df.index.tz_convert("America/New_York").tz_localize(None)
+df.index.name = "datetime"
+df[["Open","High","Low","Close","Volume"]].to_csv("aa_5m.csv")</pre>
+        <p class="note">For the daily file, on Yahoo Finance open the stock, tap Historical Data, choose Daily, then Download.</p>
+      </details>
+    </details>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" id="tb-sum" aria-selected="true" data-t="sum">Summary</button>
+    <button type="button" role="tab" id="tb-times" aria-selected="false" data-t="times">Times</button>
+    <button type="button" role="tab" id="tb-lev" aria-selected="false" data-t="lev">Prices</button>
+    <button type="button" role="tab" id="tb-top" aria-selected="false" data-t="top">Top 50</button>
+    <button type="button" role="tab" id="tb-learn" aria-selected="false" data-t="learn">Learn</button>
+  </nav>
+
+  <!-- SUMMARY -->
+  <div id="tab-sum" class="stack" role="tabpanel" aria-labelledby="tb-sum"></div>
+
+  <!-- TIMES -->
+  <div id="tab-times" class="stack" role="tabpanel" aria-labelledby="tb-times" hidden>
+    <section class="panel">
+      <h2>Look back over</h2>
+      <div class="seg" id="win" role="group" aria-label="Look-back window">
+        <button type="button" data-n="1" aria-pressed="false">1 day</button>
+        <button type="button" data-n="3" aria-pressed="false">3 days</button>
+        <button type="button" data-n="5" aria-pressed="false">1 week</button>
+        <button type="button" data-n="21" aria-pressed="true">1 month</button>
+        <button type="button" data-n="999" aria-pressed="false">All</button>
+      </div>
+      <p class="note" style="margin-top:10px"><b>Low</b> is the cheapest price of a day, a good time to <b>buy</b>. <b>High</b> is the most expensive price of a day, a good time to <b>sell</b>. This shows when those usually happened.</p>
+    </section>
+    <div id="timesOut" class="stack"></div>
+  </div>
+
+  <!-- LEVELS -->
+  <div id="tab-lev" class="stack" role="tabpanel" aria-labelledby="tb-lev" hidden></div>
+
+  <!-- TOP 50 -->
+  <div id="tab-top" class="stack" role="tabpanel" aria-labelledby="tb-top" hidden>
+    <section class="panel">
+      <h2>Top 50 day-trading stocks</h2>
+      <p class="note">Ranked from real prices for every US stock, not a list I made up. Day traders look for stocks that move a lot and trade heavily, so each stock is scored on both. Free data is end-of-day, so "1 day" means the last finished trading day.</p>
+      <div class="seg" id="twin" role="group" aria-label="Period to rank" style="margin-top:12px">
+        <button type="button" data-n="1" aria-pressed="false">1 day</button>
+        <button type="button" data-n="3" aria-pressed="false">3 days</button>
+        <button type="button" data-n="5" aria-pressed="false">1 week</button>
+        <button type="button" data-n="21" aria-pressed="true">1 month</button>
+      </div>
+      <label for="mkey" style="margin-top:12px">Market data key (free, from massive.com)<input id="mkey" type="text" placeholder="paste your key" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
+      <p class="note" style="margin-top:6px">Sign up free at massive.com (formerly Polygon.io), copy your API key, paste it here once. The buy and sell times use the Twelve Data key you already added in Data and settings.</p>
+      <div class="grid2" style="margin-top:12px">
+        <button class="btn" id="rankBtn" type="button">1. Rank the market</button>
+        <button class="btn ghost" id="timesBtn" type="button">2. Add buy and sell times</button>
+      </div>
+      <p id="topStat" class="msg" role="status" hidden></p>
+      <div class="prog" id="progWrap" hidden><i id="progBar"></i></div>
+      <label for="tsort" style="margin-top:12px">Rank by<select id="tsort"><option value="score">Best day-trade score</option><option value="range">Most movement</option><option value="dv">Most traded ($)</option></select></label>
+      <details style="margin-top:6px"><summary>How long does this take?</summary>
+        <p class="note">The free market key allows 5 requests a minute and the free Twelve Data key 8 a minute. Step 1 downloads one request per trading day (1 day: about 15 seconds, 1 week: about 1 minute, 1 month: about 5 minutes). Step 2 downloads one request per stock, about 7 minutes for 50. Keep the page open and the screen on. Results are saved in this browser, so the next visit is instant. Step 2 uses 50 of your 800 daily Twelve Data requests.</p>
+      </details>
+    </section>
+    <div id="topOut" class="stack"></div>
+  </div>
+
+  <!-- LEARN -->
+  <div id="tab-learn" class="stack" role="tabpanel" aria-labelledby="tb-learn" hidden>
+    <section class="panel">
+      <h2>How to use this page</h2>
+      <ol class="steps">
+        <li>Type a stock ticker (the short code, like AA or NVDA) and tap <b>Get prices</b>. Until you load real prices, every number is made-up example data.</li>
+        <li>Open <b>Summary</b>. It says whether the price setup looks ready, and the time of day when prices are usually lowest (buy) and highest (sell).</li>
+        <li>Open <b>Times</b> to see that pattern for 1 day, 3 days, 1 week or 1 month, slot by slot, and day by day.</li>
+        <li>Open <b>Prices</b> for exact dollar levels: where to buy, where to cut a loss (stop-loss), and where to sell for a profit.</li>
+        <li>Never put in money you can't afford to lose. Start by watching, or use a practice (paper trading) account.</li>
+      </ol>
+    </section>
+    <section class="panel">
+      <h2>Words you will see</h2>
+      <dl class="gl" style="margin:0">
+        <dt>Ticker</dt><dd>The short code for a company's stock, like NVDA for Nvidia.</dd>
+        <dt>Share</dt><dd>One small piece of ownership in a company. The price shown is the price of one share.</dd>
+        <dt>High and low</dt><dd>The highest and lowest price the stock reached in a time period. Buying low and selling high is how traders make money.</dd>
+        <dt>Buy zone / Sell zone</dt><dd>The times of day when, in the days checked, the low (buy zone) or the high (sell zone) happened most often.</dd>
+        <dt>Stop-loss</dt><dd>A price you decide in advance. If the stock falls to it, you sell and accept a small loss so it doesn't become a big one.</dd>
+        <dt>Take profit / sell target</dt><dd>A price above where you bought, where you plan to sell and keep the gain.</dd>
+        <dt>R (reward and risk)</dt><dd>1R is the amount you lose if your stop-loss is hit. A 2R target means a gain twice that size. Aim for plans where the possible gain is bigger than the possible loss.</dd>
+        <dt>Uptrend / downtrend</dt><dd>Uptrend: price is climbing over weeks, so dips are often bought. Downtrend: price is falling, so buying is riskier.</dd>
+        <dt>Moving average (20-day, 50-day)</dt><dd>The average closing price of the last 20 or 50 days. It smooths the wiggles so you can see direction. Price above the 50-day average is a sign of strength.</dd>
+        <dt>Breakout</dt><dd>Price pushes above its recent high, which can mean buyers are taking over.</dd>
+        <dt>Pullback</dt><dd>A temporary dip inside an uptrend, often used as a cheaper place to buy.</dd>
+        <dt>ATR</dt><dd>Average True Range: how many dollars the stock normally moves in a day. Stops are set using it so normal wiggles don't knock you out.</dd>
+        <dt>RSI</dt><dd>A 0 to 100 score of recent buying pressure. Over 70 means it rose a lot lately (can be stretched). Under 30 means it fell a lot lately.</dd>
+        <dt>Position size</dt><dd>How many shares to buy so that if your stop-loss is hit, you lose only the amount you chose, like 1% of your account.</dd>
+        <dt>Hindsight</dt><dd>Looking back, the best buy and sell are obvious. In real time you don't know the day's low or high until the day ends.</dd>
+        <dt>Pre-market and after-hours</dt><dd>Trading outside 9:30 AM to 4:00 PM. Fewer people trade then, prices jump more, and some brokers limit it.</dd>
+      </dl>
+    </section>
+    <section class="panel">
+      <h2>Common questions</h2>
+      <details><summary>Why can't I just buy at the lowest time every day?</summary>
+        <p class="note">The low is only known after the day is over. This page shows when lows tend to happen, which only nudges the odds. On many days the pattern does not hold, and news can break any pattern.</p></details>
+      <details><summary>Does a buy time and a sell time on the same day mean a day trade?</summary>
+        <p class="note">Yes. Buying and selling the same stock on the same day is a day trade. In the US, a margin account with under $25,000 is limited to 3 day trades in 5 days (the pattern day trader rule). Check with your broker; rules change.</p></details>
+      <details><summary>How accurate are these times?</summary>
+        <p class="note">They are counts from past days. A pattern seen on 5 days can be luck. Look for a time slot that shows up on well over a third of 20 or more days, and treat it as a hint, never a promise.</p></details>
+      <details><summary>Where does the Top 50 list come from?</summary>
+        <p class="note">From real end-of-day prices for every US stock, downloaded from Massive (formerly Polygon.io). Each stock is scored on how much it moves in a day and how many dollars trade, because day traders need both. Tiny, thinly traded stocks are left out. It is a ranking of what was active, not a list of stocks to buy.</p></details>
+      <details><summary>What if the stock drops after I buy?</summary>
+        <p class="note">That is what the stop-loss is for. Decide it before you buy, and stick to it. Without a stop, a small loss can turn into a large one.</p></details>
+    </section>
+    <section class="warnbox">
+      <b>Not financial advice.</b> This page applies fixed rules to past prices. It does not predict the future. Gaps, fees and slippage can make real results worse than the numbers shown. You decide, and you own the risk.
+    </section>
+  </div>
+</main>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var bars=[], isExample=true, fileName="", ib=[], iEx=true, iName="", winN=21, view="b", tab="sum", S=null, TT=null;
+
+/* ============ helpers ============ */
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML}
+function m(v){return (v<0?"-":"")+"$"+Math.abs(v).toFixed(2)}
+function pct(v,d){return (v>=0?"+":"")+v.toFixed(d===undefined?2:d)+"%"}
+function dt(t){return new Date(t).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"})}
+function dts(t){return new Date(t).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",timeZone:"UTC"})}
+function ap(x){return x>=720&&x<1440?"PM":"AM"}
+function h12(x){var h=Math.floor(x/60)%12;return h===0?12:h}
+function tl(x,withAP){return h12(x)+":"+("0"+(x%60)).slice(-2)+(withAP?" "+ap(x):"")}
+function lab(x){return tl(x,1)}
+function rng(k,B){var e=k+B;return ap(k)===ap(e)?tl(k)+"–"+tl(e)+" "+ap(e):tl(k,1)+" – "+tl(e,1)}
+function num(s){var v=parseFloat(String(s).replace(/[$,"\s]/g,""));return isFinite(v)?v:NaN}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function tag(){return (isExample||iEx)?"<span class='ex-tag'>EXAMPLE</span>":""}
+
+/* ============ example data (made up, labelled) ============ */
+function exampleBars(){
+  var r=mulberry32(28), out=[], d=new Date(Date.UTC(2026,9,30)), days=[];
+  while(days.length<260){var w=d.getUTCDay(); if(w!==0&&w!==6)days.unshift(new Date(d)); d=new Date(d.getTime()-864e5)}
+  var p=31,i;
+  for(i=0;i<days.length;i++){
+    var drift=i<120?0.0004:(i<200?0.0018:-0.0004), ret=drift+(r()-0.5)*0.045;
+    var c=p*(1+ret), hi=Math.max(p,c)*(1+r()*0.012), lo=Math.min(p,c)*(1-r()*0.012);
+    out.push({t:days[i].getTime(),h:hi,l:lo,c:c}); p=c;
+  }
+  return out;
+}
+function exampleIntraday(){
+  var r=mulberry32(77), out=[], d=new Date(Date.UTC(2026,9,30)), days=[];
+  while(days.length<25){var w=d.getUTCDay(); if(w!==0&&w!==6)days.unshift(new Date(d)); d=new Date(d.getTime()-864e5)}
+  var p=62,k;
+  days.forEach(function(dd){
+    var ds=dd.toISOString().slice(0,10), pr=p*(1+(r()-0.5)*0.012);
+    for(k=0;k<13;k++){
+      var mn=570+k*30, vol=(k<2||k>10)?0.0075:0.0042, shape=(k<3?-0.0009:(k>9?0.0007:0.0001));
+      var c=pr*(1+shape+(r()-0.5)*vol*2), hh=Math.max(pr,c)*(1+r()*vol*0.6), ll=Math.min(pr,c)*(1-r()*vol*0.6);
+      out.push({day:ds,min:mn,o:pr,h:hh,l:ll,c:c}); pr=c;
+    }
+    p=pr;
+  });
+  return out;
+}
+
+/* ============ CSV parsing ============ */
+function parseCSV(text){
+  var lines=text.replace(/\r/g,"").split("\n").filter(function(l){return l.trim()});
+  if(lines.length<30) throw new Error("Only "+lines.length+" rows found. Need at least 30 days of history.");
+  var head=lines[0].split(",").map(function(h){return h.replace(/"/g,"").trim().toLowerCase()});
+  function find(f){for(var i=0;i<head.length;i++){if(f(head[i]))return i}return -1}
+  var di=find(function(h){return h==="date"||h==="datetime"||h==="timestamp"});
+  var hi=find(function(h){return h==="high"}), li=find(function(h){return h==="low"});
+  var ci=find(function(h){return h==="close"||h==="close/last"});
+  if(ci<0) ci=find(function(h){return h.indexOf("close")>=0&&h.indexOf("adj")<0});
+  if(di<0||hi<0||li<0||ci<0) throw new Error("Could not find date, high, low and close columns. Found: "+head.join(", "));
+  var out=[];
+  for(var k=1;k<lines.length;k++){
+    var f=lines[k].split(","), t=Date.parse(String(f[di]).replace(/"/g,"").trim()), h=num(f[hi]),l=num(f[li]),c=num(f[ci]);
+    if(isFinite(t)&&isFinite(h)&&isFinite(l)&&isFinite(c)) out.push({t:t,h:h,l:l,c:c});
+  }
+  out.sort(function(a,b){return a.t-b.t});
+  if(out.length<30) throw new Error("Only "+out.length+" usable rows. Need at least 30.");
+  return out;
+}
+function parseIntraday(text){
+  var lines=text.replace(/\r/g,"").split("\n").filter(function(l){return l.trim()});
+  if(lines.length<10) throw new Error("Only "+lines.length+" rows found. An intraday file needs many bars.");
+  var head=lines[0].split(",").map(function(h){return h.replace(/"/g,"").trim().toLowerCase()});
+  function find(f){for(var i=0;i<head.length;i++){if(f(head[i]))return i}return -1}
+  var di=find(function(h){return h==="datetime"||h==="date/time"||h==="timestamp"||h==="time"||h==="date"});
+  if(di<0&&head[0]==="price") di=0;
+  var oi=find(function(h){return h==="open"}), hi=find(function(h){return h==="high"}), li=find(function(h){return h==="low"}), vi=find(function(h){return h==="volume"});
+  var ci=find(function(h){return h==="close"||h==="close/last"});
+  if(di<0||hi<0||li<0||ci<0) throw new Error("Could not find datetime, high, low and close columns. Found: "+head.join(", "));
+  var out=[], re=/(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/, re2=/(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})\s*(AM|PM)?/i;
+  for(var k=1;k<lines.length;k++){
+    var f=lines[k].split(","), raw=String(f[di]).replace(/"/g,"").trim(), day,mn,mt=raw.match(re);
+    if(mt){day=mt[1];mn=+mt[2]*60+ +mt[3]}
+    else{var m2=raw.match(re2); if(!m2)continue; var hr=+m2[4]; if(m2[6]){var pm=m2[6].toUpperCase()==="PM";hr=(hr%12)+(pm?12:0)}
+      day=m2[3]+"-"+("0"+m2[1]).slice(-2)+"-"+("0"+m2[2]).slice(-2); mn=hr*60+ +m2[5]}
+    var h=num(f[hi]),l=num(f[li]),c=num(f[ci]),o=oi>=0?num(f[oi]):c;
+    if(isFinite(h)&&isFinite(l)&&isFinite(c)) out.push({day:day,min:mn,o:isFinite(o)?o:c,h:h,l:l,c:c,v:vi>=0?(num(f[vi])||0):0});
+  }
+  out.sort(function(a,b){return a.day<b.day?-1:a.day>b.day?1:a.min-b.min});
+  if(out.length<10) throw new Error("No usable intraday rows found. Times must look like 2026-10-30 09:30:00.");
+  return out;
+}
+
+/* ============ price indicators ============ */
+function sma(a,n){if(a.length<n)return null;var s=0;for(var i=a.length-n;i<a.length;i++)s+=a[i].c;return s/n}
+function rsi(a,n){
+  if(a.length<n+1)return null; var g=0,l=0,i,d;
+  for(i=1;i<=n;i++){d=a[i].c-a[i-1].c; if(d>=0)g+=d; else l-=d}
+  g/=n;l/=n;
+  for(i=n+1;i<a.length;i++){d=a[i].c-a[i-1].c; g=(g*(n-1)+(d>0?d:0))/n; l=(l*(n-1)+(d<0?-d:0))/n}
+  return l===0?100:100-100/(1+g/l);
+}
+function atr(a,n){
+  if(a.length<n+1)return null; var tr=[],i;
+  for(i=1;i<a.length;i++) tr.push(Math.max(a[i].h-a[i].l,Math.abs(a[i].h-a[i-1].c),Math.abs(a[i].l-a[i-1].c)));
+  var v=0; for(i=0;i<n;i++)v+=tr[i]; v/=n;
+  for(i=n;i<tr.length;i++) v=(v*(n-1)+tr[i])/n;
+  return v;
+}
+function maxH(a,n){var x=-Infinity;for(var i=Math.max(0,a.length-n);i<a.length;i++)x=Math.max(x,a[i].h);return x}
+function minL(a,n){var x=Infinity;for(var i=Math.max(0,a.length-n);i<a.length;i++)x=Math.min(x,a[i].l);return x}
+
+function calc(a,account,riskPct){
+  var last=a[a.length-1], c=last.c;
+  var A=atr(a,14), s20=sma(a,20), s50=sma(a,50), R=rsi(a,14);
+  var hi20=maxH(a.slice(0,-1),20), lo10=minL(a,10);
+  var up=s50!==null&&s20!==null&&c>s50&&s20>s50;
+  var down=s50!==null&&c<s50&&s20<s50;
+  var budget=account*riskPct/100;
+  function plan(entry,stop){
+    var risk=entry-stop, ok=risk>0&&isFinite(risk);
+    var sh=ok?Math.min(Math.floor(budget/risk),Math.floor(account/entry)):0;
+    return {entry:entry,stop:stop,risk:risk,t2:entry+2*risk,t3:entry+3*risk,shares:Math.max(sh,0),ok:ok,stopPct:(entry-stop)/entry*100};
+  }
+  var bEntry=hi20*1.001, bp=plan(bEntry,bEntry-1.5*A);
+  var pEntry=s20, pStop=(s50!==null?Math.min(lo10,s50):lo10)-0.25*A, pp=plan(pEntry,pStop);
+  var bs,bc;
+  if(c>=bEntry){bs="Active now";bc="buy"} else {bs="Not yet, needs +"+((bEntry/c-1)*100).toFixed(1)+"%";bc="mute"}
+  if(down&&c>=bEntry){bs="Active, but in a downtrend";bc="warn"}
+  var ps,pc;
+  if(!up){ps="Not valid, no uptrend";pc="stop"}
+  else if(c<=s20*1.01&&c>=s50){ps="Price is in the buy zone now";pc="buy"}
+  else if(c>s20*1.01){ps="Not yet, needs a dip of "+((1-s20/c)*100).toFixed(1)+"%";pc="mute"}
+  else {ps="Broke below the 50-day average";pc="stop"}
+  return {last:last,c:c,A:A,s20:s20,s50:s50,R:R,hi20:hi20,lo10:lo10,up:up,down:down,b:bp,p:pp,bs:bs,bc:bc,ps:ps,pc:pc,budget:budget,
+    trend:up?"Uptrend":(down?"Downtrend":"Sideways"),hh52:maxH(a,252),ll52:minL(a,252),hi22:maxH(a,22)};
+}
+
+/* ============ time-of-day analysis ============ */
+function tmin(s,fb){var x=String(s).trim().match(/^(\d{1,2}):?(\d{2})$/);return x?(+x[1]*60+ +x[2]):fb}
+function analyseT(n,src,fx){
+  var t0=fx?fx.t0:tmin($("t0").value,570), t1=fx?fx.t1:tmin($("t1").value,960), B=fx?fx.B:Math.max(5,Math.min(60,parseInt($("bk").value,10)||30));
+  var byDay={}, order=[];
+  (src||ib).forEach(function(b){if(b.min<t0||b.min>=t1)return; if(!byDay[b.day]){byDay[b.day]=[];order.push(b.day)} byDay[b.day].push(b)});
+  order=order.filter(function(d){return byDay[d].length>=2});
+  if(!order.length) return null;
+  var use=order.slice(-Math.min(n,order.length));
+  var bk=function(x){return Math.floor(x/B)*B};
+  var rows=[], lowH={}, highH={}, shape={}, seen={}, perDay=[], vr={};
+  use.forEach(function(d){
+    var a=byDay[d], lowV=Infinity,lowT=0,highV=-Infinity,highT=0,minLow=Infinity,minT=0,best=-1,bBuy=0,bSell=0;
+    a.forEach(function(b){
+      if(b.l<lowV){lowV=b.l;lowT=b.min} if(b.h>highV){highV=b.h;highT=b.min}
+      if(b.l<minLow){minLow=b.l;minT=b.min}
+      var g=(b.h-minLow)/minLow*100; if(g>best){best=g;bBuy=minT;bSell=b.min}
+    });
+    lowH[bk(lowT)]=(lowH[bk(lowT)]||0)+1; highH[bk(highT)]=(highH[bk(highT)]||0)+1;
+    var open=a[0].o, bc={};
+    a.forEach(function(b){var k=bk(b.min); bc[k]=b.c; seen[k]=1});
+    perDay.push(bc);
+    var br={}; a.forEach(function(b){var k=bk(b.min); if(!br[k])br[k]={h:b.h,l:b.l,o:b.o}; else{br[k].h=Math.max(br[k].h,b.h);br[k].l=Math.min(br[k].l,b.l)}});
+    Object.keys(br).forEach(function(k){(vr[k]=vr[k]||[]).push((br[k].h-br[k].l)/br[k].o*100)});
+    Object.keys(bc).forEach(function(k){(shape[k]=shape[k]||[]).push((bc[k]/open-1)*100)});
+    var nb4=a.filter(function(b){return b.min<720}), pb4=a.filter(function(b){return b.min>=720}), amM=null,pmM=null,amS=null,pmS=null;
+    function sw(z){var h=-Infinity,l=Infinity;z.forEach(function(b){h=Math.max(h,b.h);l=Math.min(l,b.l)});return (h-l)/open0*100}
+    var open0=a[0].o;
+    if(nb4.length&&pb4.length){var nc=nb4[nb4.length-1].c;amM=(nc/open0-1)*100;pmM=(a[a.length-1].c/nc-1)*100;amS=sw(nb4);pmS=sw(pb4)}
+    rows.push({amM:amM,pmM:pmM,amS:amS,pmS:pmS,day:d,lowT:lowT,lowV:lowV,highT:highT,highV:highV,bBuy:bBuy,bSell:bSell,gain:best,lowFirst:lowT<=highT,open:a[0].o,dv:a.reduce(function(x,b){return x+b.c*(b.v||0)},0)});
+  });
+  var keys=Object.keys(seen).map(Number).sort(function(x,y){return x-y});
+  function ranked(h){return keys.filter(function(k){return h[k]}).sort(function(x,y){return h[y]-h[x]||x-y})}
+  var rl=ranked(lowH), rh=ranked(highH);
+  var avgShape=keys.map(function(k){var v=shape[k]||[];return {k:k,v:v.reduce(function(x,y){return x+y},0)/(v.length||1)}});
+  var N=rows.length;
+  var pair=null;
+  if(N>=5){for(var i=0;i<keys.length;i++)for(var j=i+1;j<keys.length;j++){
+    var rs=[];perDay.forEach(function(bc){if(bc[keys[i]]&&bc[keys[j]])rs.push((bc[keys[j]]/bc[keys[i]]-1)*100)});
+    if(rs.length<Math.ceil(N*0.8))continue;
+    var mean=rs.reduce(function(x,y){return x+y},0)/rs.length, w=rs.filter(function(x){return x>0}).length/rs.length;
+    if(!pair||mean>pair.mean)pair={a:keys[i],b:keys[j],mean:mean,win:w,n:rs.length};
+  }}
+  var avgVol=keys.map(function(k){var v=vr[k]||[];return {k:k,v:v.reduce(function(x,y){return x+y},0)/(v.length||1)}});
+  var dayBars={}; use.forEach(function(d){dayBars[d]=byDay[d]});
+  var nr=rows.filter(function(r){return r.amM!==null});
+  function av(f){return nr.reduce(function(x,r){return x+f(r)},0)/(nr.length||1)}
+  var noon=null;
+  if(nr.length>=2){
+    var lull=avgVol.filter(function(p){return p.k>=660&&p.k<810}).sort(function(x,y){return x.v-y.v})[0];
+    var lows=rows.map(function(r){return r.lowT}).sort(function(x,y){return x-y});
+    var pm=avgShape.slice().sort(function(x,y){return x.v-y.v})[0];
+    noon={n:nr.length,amAvg:av(function(r){return r.amM}),pmAvg:av(function(r){return r.pmM}),
+      amUp:nr.filter(function(r){return r.amM>0}).length/nr.length*100,pmUp:nr.filter(function(r){return r.pmM>0}).length/nr.length*100,
+      amSw:av(function(r){return r.amS}),pmSw:av(function(r){return r.pmS}),
+      dipRally:nr.filter(function(r){return r.amM<0&&r.pmM>0}).length/nr.length*100,
+      rallyFade:nr.filter(function(r){return r.amM>0&&r.pmM<0}).length/nr.length*100,
+      lull:lull?lull.k:null,medLow:lows[Math.floor(lows.length/2)],lowK:pm?pm.k:null};
+  }
+  return {noon:noon,rows:rows,n:N,B:B,keys:keys,lowH:lowH,highH:highH,rl:rl,rh:rh,avgShape:avgShape,pair:pair,avgVol:avgVol,dayBars:dayBars,t0:t0,t1:t1,
+    lowAM:rows.filter(function(r){return r.lowT<720}).length/N*100, highPM:rows.filter(function(r){return r.highT>=720}).length/N*100,
+    avgGain:rows.reduce(function(x,r){return x+r.gain},0)/N, firstDay:use[0], lastDay:use[use.length-1]};
+}
+function zones(T){
+  var buy=T.rl.slice(0,2).filter(function(k,i){return i===0||T.lowH[k]>=T.lowH[T.rl[0]]/2});
+  var sell=T.rh.slice(0,2).filter(function(k,i){return i===0||T.highH[k]>=T.highH[T.rh[0]]/2});
+  var vol=[];
+  buy.filter(function(k){return sell.indexOf(k)>=0}).forEach(function(k){
+    var l=T.lowH[k]||0,h=T.highH[k]||0;
+    if(l>h){sell=sell.filter(function(x){return x!==k})}
+    else if(h>l){buy=buy.filter(function(x){return x!==k})}
+    else{vol.push(k);buy=buy.filter(function(x){return x!==k});sell=sell.filter(function(x){return x!==k})}
+  });
+  if(!buy.length){buy=T.rl.filter(function(k){return sell.indexOf(k)<0&&vol.indexOf(k)<0}).slice(0,1)}
+  if(!sell.length){sell=T.rh.filter(function(k){return buy.indexOf(k)<0&&vol.indexOf(k)<0}).slice(0,1)}
+  if(!buy.length)buy=[T.rl[0]];
+  if(!sell.length)sell=[T.rh[0]];
+  return {buy:buy,sell:sell,vol:vol};
+}
+var selDay="";
+function selDayPick(T){return T.dayBars[selDay]?selDay:T.rows[T.rows.length-1].day}
+function strength(cnt,n,nb){
+  if(n<5) return {t:"Too few days to call this a pattern.",c:"warn"};
+  var ratio=cnt/n*nb;
+  if(ratio>=2.2) return {t:"Fairly consistent pattern.",c:"buy"};
+  if(ratio>=1.5) return {t:"Some tendency, but not reliable.",c:"warn"};
+  return {t:"Weak, close to random.",c:"mute"};
+}
+function zoneText(rk,B){
+  if(!rk.length)return "n/a";
+  return rng(rk[0],B);
+}
+
+/* ============ SUMMARY tab ============ */
+function renderBanners(tk){
+  var b=$("banner"), b2=$("banner2");
+  if(isExample){b.className="status ex";b.innerHTML="<b>Daily prices: example.</b> Made-up numbers, not real "+esc(tk)+" prices. Tap Get prices, or load a file in Data and settings."}
+  else{b.className="status";b.innerHTML="<b>Daily prices:</b> "+esc(fileName||"your file")+" for <b>"+esc(tk)+"</b>, "+bars.length+" days, "+dt(bars[0].t)+" to "+dt(bars[bars.length-1].t)+"."}
+  if(iEx){b2.className="status ex";b2.innerHTML="<b>Time-of-day prices: example.</b> Made-up 30-minute prices, not real "+esc(tk)+" times."}
+  else{b2.className="status";b2.innerHTML="<b>Time-of-day prices:</b> "+esc(iName)+" for <b>"+esc(tk)+"</b>. Times are New York time."}
+}
+function verdictOf(){
+  var readyP=S.up&&S.pc==="buy", readyB=S.bc==="buy"&&!S.down;
+  if(readyP) return {c:"buy",pill:"Setup ready",big:"Price is in the pullback buy zone",txt:"The stock is in an uptrend and has dipped to its buy zone. This is the kind of spot the pullback rule looks for."};
+  if(readyB) return {c:"buy",pill:"Setup ready",big:"A breakout is active",txt:"Price is above its recent 20-day high. The breakout rule says this is a buy point, with a stop-loss below."};
+  if(S.down) return {c:"stop",pill:"Avoid for now",big:"Downtrend, no buy rule is met",txt:"Price is below its 50-day average and falling. Buying a falling stock is riskier. Waiting is a valid choice."};
+  if(S.up) return {c:"warn",pill:"Wait",big:"Uptrend, but not at a buy level yet",txt:"The trend is up. The rules want a dip to the buy zone or a break above the recent high before buying."};
+  return {c:"warn",pill:"Wait",big:"No clear trend",txt:"Price is moving sideways, so neither rule has a strong signal."};
+}
+function noonPanel(){
+  if(!TT||!TT.noon||TT.t0>=720||TT.t1<=720) return "";
+  var N=TT.noon,B=TT.B;
+  var swingWord=N.amSw>N.pmSw*1.15?"Morning swings are bigger than afternoon swings, so the morning is the choppy part of the day.":(N.pmSw>N.amSw*1.15?"Afternoon swings are bigger than morning swings on this stock.":"Morning and afternoon swing about the same amount.");
+  var lead,cls;
+  if(N.amAvg<0&&N.pmAvg>0){lead="The usual shape: <b>down in the morning, then back up after noon</b>.";cls="buy"}
+  else if(N.amAvg>0&&N.pmAvg<0){lead="The usual shape: <b>up in the morning, then fading after noon</b>.";cls="warn"}
+  else if(N.amAvg>0&&N.pmAvg>0){lead="The usual shape: <b>up in both halves</b> (a steadily rising stock).";cls="buy"}
+  else{lead="The usual shape: <b>down in both halves</b> (a steadily falling stock).";cls="stop"}
+  var turn=N.lull!==null?"<p style='margin-top:8px'>The market usually goes quiet around <b>"+rng(N.lull,B)+"</b> (the lunch lull). This is the break between the morning and the afternoon move. Check what the price is doing there before you decide about the afternoon.</p>":"";
+  var low=N.lowK!==null?"<p class='small' style='margin-top:8px'>The average price path is at its lowest around <b>"+rng(N.lowK,B)+"</b>. The day's low was typically hit at about <b>"+tl(N.medLow,1)+"</b> (the middle value over "+TT.n+" days).</p>":"";
+  return "<section class='panel'><h2>The noon break"+tag()+"</h2>"+
+   "<p class='note'>Before noon the price usually moves one way, after noon it can do something different. Here is how it split up over the last "+N.n+" day"+(N.n>1?"s":"")+".</p>"+
+   "<div class='verdict "+cls+"' style='margin-top:8px'><p style='margin:0'>"+lead+"</p></div>"+
+   "<div class='grid2' style='margin-top:10px'>"+
+    "<div class='statbox'><div class='k'>Before noon</div><div class='v'>"+pct(N.amAvg,2)+"</div><div class='s'>average move, up on "+Math.round(N.amUp)+"% of days</div></div>"+
+    "<div class='statbox'><div class='k'>After noon</div><div class='v'>"+pct(N.pmAvg,2)+"</div><div class='s'>average move, up on "+Math.round(N.pmUp)+"% of days</div></div></div>"+
+   "<p style='margin-top:12px'>Down before noon, then up after noon happened on <b>"+Math.round(N.dipRally)+"%</b> of days. Up before noon, then down after noon happened on <b>"+Math.round(N.rallyFade)+"%</b>.</p>"+
+   "<p class='small' style='margin-top:8px'>"+swingWord+" Average swing (high to low): "+N.amSw.toFixed(2)+"% before noon, "+N.pmSw.toFixed(2)+"% after noon.</p>"+
+   turn+low+
+   "<p class='note' style='margin-top:8px'>How to use it: buy near the morning low, then watch the lunch lull. If the price holds above the morning low there, the afternoon rise has a better chance. If it breaks below, use your stop-loss.</p></section>";
+}
+function renderSummary(){
+  var tk=($("ticker").value||"").trim().toUpperCase()||"TICKER";
+  var v=verdictOf(), B=TT?TT.B:30;
+  var buyT="Load 5-minute prices to see this", sellT=buyT, buyN="", sellN="", strN="";
+  if(TT){
+    var Z=zones(TT);
+    buyT=zl(Z.buy,B); sellT=zl(Z.sell,B);
+    var lc=TT.lowH[Z.buy[0]]||0, hc=TT.highH[Z.sell[0]]||0, nb=TT.keys.length;
+    var sl=strength(lc,TT.n,nb), sh=strength(hc,TT.n,nb);
+    buyN="Lowest prices came in this slot on "+lc+" of "+TT.n+" day"+(TT.n>1?"s":"")+" ("+Math.round(lc/TT.n*100)+"%). Pure chance would be about "+Math.round(100/nb)+"%. "+sl.t;
+    sellN="Highest prices came in this slot on "+hc+" of "+TT.n+" day"+(TT.n>1?"s":"")+" ("+Math.round(hc/TT.n*100)+"%). "+sh.t;
+    if(Z.vol.length) strN="The "+Z.vol.map(function(k){return rng(k,B)}).join(", ")+" slot had both the day's low and high equally often. It is the most volatile stretch, so it is left out of both windows above.";
+  }
+  var c=S.c, ent=parseFloat($("entry").value), sh2=parseFloat($("shares").value), posHtml="";
+  if(ent>0){
+    var pl=(c-ent)*(sh2>0?sh2:1), plp=(c/ent-1)*100;
+    posHtml="<section class='panel'><h2>Your position</h2><p><b>"+(sh2>0?m(pl):m(pl)+" per share")+"</b> ("+pct(plp,1)+") since you paid "+m(ent)+". Open the Prices tab for where to sell and where your stop-loss belongs.</p></section>";
+  }
+  $("tab-sum").innerHTML=
+   "<section class='panel'><h2>"+esc(tk)+" right now"+tag()+"</h2>"+
+   "<div class='verdict "+v.c+"'><span class='pill "+v.c+"'>"+v.pill+"</span><div class='big'>"+v.big+"</div><p>"+v.txt+"</p>"+
+   "<p class='note' style='margin-top:8px'>Last close "+m(S.c)+" on "+dt(S.last.t)+". Trend: "+S.trend+".</p></div></section>"+
+   "<section class='panel'><h2>When to buy and sell"+tag()+"</h2>"+
+    "<p class='note'>Based on the last "+(TT?TT.n:0)+" trading day"+(TT&&TT.n>1?"s":"")+" you chose on the Times tab.</p>"+
+    "<div class='cw' style='height:128px;margin-top:8px'><canvas id='cvTl' role='img' aria-label='Trading day timeline with buy and sell windows'></canvas></div>"+
+    "<p class='cap'>Green band: usual time of the day's low (buy). Orange band: usual time of the high (sell). Black line: the average price path from the open.</p>"+
+    "<div class='bs buy'><div class='tag'>BUY</div><div><div class='big'>"+buyT+"</div><p>Prices are usually <b>lowest</b> around this time, so it is the usual window to look for a buy.</p>"+(buyN?"<p class='small'>"+buyN+"</p>":"")+
+      "<p>Price to aim for: near <b>"+m(S.p.entry)+"</b> (pullback) or above <b>"+m(S.b.entry)+"</b> (breakout).</p></div></div>"+
+    "<div class='bs sell'><div class='tag'>SELL</div><div><div class='big'>"+sellT+"</div><p>Prices are usually <b>highest</b> around this time, so it is the usual window to sell.</p>"+(sellN?"<p class='small'>"+sellN+"</p>":"")+
+      "<p>Sell targets: <b>"+m(S.p.t2)+"</b> then <b>"+m(S.p.t3)+"</b> (pullback plan). Exit early if price falls to the stop-loss at <b>"+m(S.p.stop)+"</b>.</p></div></div>"+
+   (strN?"<p class='note' style='margin-top:10px'>"+strN+"</p>":"")+
+   "</section>"+
+   noonPanel()+
+   posHtml+
+   "<section class='panel'><h2>Where Claude can help</h2><p class='note'>Claude can explain any of these numbers in plain English, check whether your plan makes sense, or answer your questions. The page does the math. Claude helps you understand it.</p>"+
+     "<div class='grid2' style='margin-top:10px'><button class='btn' id='aiExplain' type='button'"+(sampleFn?"":" hidden")+">Explain it to me</button><button class='btn ghost' id='aiCopy' type='button'>Copy summary for Claude</button></div>"+
+     "<p id='aiCopyMsg' class='note' style='margin-top:8px' hidden></p><div id='aiOut' class='aiout' "+(aiLast?"":"hidden")+">"+esc(aiLast)+"</div>"+
+     "<details><summary>Show the summary text</summary><textarea id='aiText' readonly aria-label='Summary to paste into a chat with Claude'></textarea></details></section>"+
+   "<section class='warnbox'><b>Read this first.</b> These are patterns in past prices, not predictions. The exact low or high of a day is only known after it happens. Never risk money you can't afford to lose. This is not financial advice. Open the Learn tab if any word is new.</section>";
+}
+
+/* ============ TIMES tab ============ */
+function renderTimes(){
+  var out=$("timesOut");
+  TT=analyseT(winN);
+  if(!TT){out.innerHTML="<section class='panel'><p class='msg bad'>No prices fall between those times. Check Day starts and Day ends in Data and settings.</p></section>";return}
+  var T=TT,B=T.B,nb=T.keys.length,mx=0;
+  T.keys.forEach(function(k){mx=Math.max(mx,(T.lowH[k]||0)/T.n*100,(T.highH[k]||0)/T.n*100)});
+  var Z=zones(T), buyKeys=Z.buy, sellKeys=Z.sell;
+  var sl=strength(T.lowH[buyKeys[0]]||0,T.n,nb), sh=strength(T.highH[sellKeys[0]]||0,T.n,nb);
+  var period=T.n===1?"on "+dts(Date.parse(T.lastDay+"T00:00:00Z")):"over the last "+T.n+" trading days ("+dts(Date.parse(T.firstDay+"T00:00:00Z"))+" to "+dts(Date.parse(T.lastDay+"T00:00:00Z"))+")";
+  var html="<section class='panel'><h2>Best times "+period+tag()+"</h2>"+
+    "<div class='bs buy'><div class='tag'>BUY</div><div><div class='big'>"+zl(buyKeys,B)+"</div><p>The <b>low</b> of the day (cheapest price) usually happened here.</p><p class='small'>"+(T.lowH[buyKeys[0]]||0)+" of "+T.n+" days in the top slot. "+sl.t+" The low came before noon on "+T.lowAM.toFixed(0)+"% of days.</p></div></div>"+
+    "<div class='bs sell'><div class='tag'>SELL</div><div><div class='big'>"+zl(sellKeys,B)+"</div><p>The <b>high</b> of the day (most expensive price) usually happened here.</p><p class='small'>"+(T.highH[sellKeys[0]]||0)+" of "+T.n+" days in the top slot. "+sh.t+" The high came after noon on "+T.highPM.toFixed(0)+"% of days.</p></div></div>"+
+    (Z.vol.length?"<p class='note' style='margin-top:10px'><b>Heads up:</b> "+Z.vol.map(function(k){return rng(k,B)}).join(", ")+" had both the day's low and the day's high equally often. That is usually the opening stretch, when prices swing the most and are hardest to trade. Many beginners wait for it to settle.</p>":"")+"<p class='note' style='margin-top:10px'>If you bought the exact low and sold the later high each day, you would have made about <b>"+pct(T.avgGain)+"</b> per day. That is the hindsight best case, not what you should expect.</p></section>";
+
+  var cd=cumData(T), mLow=cd.filter(function(p){return p.lo>=50})[0], mHigh=cd.filter(function(p){return p.hi>=50})[0];
+  var rowsN=Math.min(T.rows.length,30);
+  html+="<section class='panel'><h2>Where each day's low and high fell"+tag()+"</h2><p class='note'>One row per day. Green dot: the day's low (buy). Orange dot: the day's high (sell). Dots that bunch together show a steady pattern.</p>"+
+    "<div class='cw' style='height:"+(rowsN*15+34)+"px;margin-top:8px'><canvas id='cvDot' role='img' aria-label='Dot plot of the time of each day low and high'></canvas></div></section>";
+  html+="<section class='panel'><h2>By what time is the low or high already in?"+tag()+"</h2>"+
+    "<div class='cw' style='height:200px'><canvas id='cvCum' role='img' aria-label='Share of days the low and high were already set by each time'></canvas></div>"+
+    "<p class='note' style='margin-top:6px'>"+(mLow&&mHigh?"By <b>"+lab(mLow.k+T.B)+"</b> the day's <b style='color:var(--buy)'>low</b> was already in on half of the days. By <b>"+lab(mHigh.k+T.B)+"</b> the day's <b style='color:var(--sell)'>high</b> was in on half of the days. ":"")+"Green line: share of days the low was already set. Orange line: share of days the high was already set. A buy after the green line has climbed means you are usually past the cheapest price.</p></section>";
+  var dayOpts=T.rows.slice().reverse().map(function(r){return "<option value='"+r.day+"'"+(r.day===selDayPick(T)?" selected":"")+">"+dts(Date.parse(r.day+"T00:00:00Z"))+"</option>"}).join("");
+  html+="<section class='panel'><h2>Look at one day"+tag()+"</h2><label for='daySel'>Pick a day<select id='daySel'>"+dayOpts+"</select></label>"+
+    "<div class='cw' style='height:240px;margin-top:10px'><canvas id='cvDay' role='img' aria-label='Price through the chosen day with buy and sell windows shaded'></canvas></div>"+
+    "<p class='cap'>The black line is that day's price. The shaded green and orange bands are the usual buy and sell windows. The dots mark that day's actual low and high.</p></section>";
+  // period comparison
+  var per=[[1,"1 day"],[3,"3 days"],[5,"1 week"],[21,"1 month"]].map(function(x){return {lab:x[1],a:analyseT(x[0])}});
+  html+="<section class='panel'><h2>Same question, different periods"+tag()+"</h2><div class='per'><div class='h'>Period</div><div class='h'>Low (buy)</div><div class='h'>High (sell)</div>"+
+    per.map(function(p){return "<div class='p'>"+p.lab+"</div>"+(p.a?"<div class='b'>"+rng(p.a.rl[0],p.a.B)+(p.a.n<(p.lab==="1 day"?1:p.lab==="3 days"?3:p.lab==="1 week"?5:21)?"<br><span style='color:var(--muted)'>only "+p.a.n+" day"+(p.a.n>1?"s":"")+" loaded</span>":"")+"</div><div class='s'>"+rng(p.a.rh[0],p.a.B)+"</div>":"<div>n/a</div><div>n/a</div>")}).join("")+
+    "</div><p class='note' style='margin-top:8px'>If the times change a lot between periods, there is no steady pattern to lean on.</p></section>";
+
+  // slots
+  html+="<section class='panel'><h2>Every time slot"+tag()+"</h2><div class='legend'><span><b style='background:var(--buy)'></b>Day's low happened here (buy)</span><span><b style='background:var(--sell)'></b>Day's high happened here (sell)</span></div>"+
+    T.keys.map(function(k){
+      var lp=(T.lowH[k]||0)/T.n*100, hp=(T.highH[k]||0)/T.n*100, sh=T.avgShape.filter(function(p){return p.k===k})[0];
+      var tags=(buyKeys.indexOf(k)>=0?"<span class='pill buy'>BUY ZONE</span> ":"")+(sellKeys.indexOf(k)>=0?"<span class='pill sell'>SELL ZONE</span>":"");
+      return "<div class='slot'><div class='t'>"+tl(k,1)+"<small>to "+tl(k+B,1)+"</small></div><div>"+
+        "<div class='bar lo'><i style='width:"+(mx?lp/mx*62:0)+"%'></i>"+lp.toFixed(0)+"% low</div>"+
+        "<div class='bar hi'><i style='width:"+(mx?hp/mx*62:0)+"%'></i>"+hp.toFixed(0)+"% high</div>"+
+        (tags?"<div class='bar' style='margin-top:4px'>"+tags+"</div>":"")+"<div class='bar'>avg "+pct(sh?sh.v:0)+" vs open</div></div></div>";
+    }).join("")+"</section>";
+
+  html+="<section class='panel'><h2>How much it moves in each slot"+tag()+"</h2><div class='cw' style='height:190px'><canvas id='cvVol' role='img' aria-label='Average price range by time slot'></canvas></div>"+
+    "<p class='note' style='margin-top:6px'>Taller bars mean bigger swings, so bigger chances and bigger risks. Quiet slots are slower and tighter. The gold bar is the wildest slot ("+rng(T.avgVol.slice().sort(function(a,b){return b.v-a.v})[0].k,T.B)+").</p></section>";
+  // shape chart
+  html+="<section class='panel'><h2>A typical day, % from the open"+tag()+"</h2><div class='cw' style='height:210px'><canvas id='cv2' role='img' aria-label='Average percent change from the open by time of day'></canvas></div>"+
+    "<p class='note'>Bars below zero mean the price is usually under the open at that time (cheaper). Bars above zero mean above the open (more expensive).</p></section>";
+
+  if(T.pair) html+="<section class='panel'><h2>Best buy-then-sell pair"+tag()+"</h2><p><b>Buy at "+lab(T.pair.a+T.B)+", sell at "+lab(T.pair.b+T.B)+"</b> (the end of those slots) had the best average result: <b>"+pct(T.pair.mean)+"</b>, positive on "+(T.pair.win*100).toFixed(0)+"% of "+T.pair.n+" days.</p><p class='note' style='margin-top:6px'>"+(T.n<20?"Only "+T.n+" days, so this may be luck. ":"")+"The best of many pairs always looks good in hindsight. Test it on new days before trusting it.</p></section>";
+
+  // day cards
+  var shown=T.rows.slice().reverse().slice(0,20);
+  html+="<section class='panel'><h2>Day by day"+tag()+"</h2>"+shown.map(function(r){
+    return "<div class='day'><div class='hd'><span>"+dts(Date.parse(r.day+"T00:00:00Z"))+"</span><span class='pill "+(r.lowFirst?"buy":"mute")+"'>"+(r.lowFirst?"Low, then high":"High, then low")+"</span></div>"+
+      "<div class='ln lo'><span>Low (buy) at "+lab(r.lowT)+"</span><span>"+m(r.lowV)+"</span></div>"+
+      "<div class='ln hi'><span>High (sell) at "+lab(r.highT)+"</span><span>"+m(r.highV)+"</span></div>"+
+      "<div class='nt'>"+(r.lowFirst?"Buying the low then selling the high would have made "+pct((r.highV/r.lowV-1)*100)+".":"The high came before the low, so you could not buy low and then sell at that high. Best possible: buy "+lab(r.bBuy)+", sell "+lab(r.bSell)+", "+pct(r.gain)+".")+"</div></div>";
+  }).join("")+(T.rows.length>20?"<p class='note' style='margin-top:8px'>Showing the latest 20 of "+T.rows.length+" days.</p>":"")+"</section>";
+  out.innerHTML=html;
+  selDay=selDayPick(T);
+  var ds=$("daySel"); if(ds)ds.addEventListener("change",function(){selDay=ds.value;drawDay()});
+  if(tab==="times") drawActive();
+}
+function drawShape(){
+  var cv=$("cv2"); if(!cv||!TT)return;
+  var dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight; if(!W||!H)return;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  var x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+  var d=TT.avgShape,mut=css("--muted"),line=css("--line"),up=css("--sell"),dn=css("--buy"),ink=css("--ink");
+  var mx=0;d.forEach(function(p){mx=Math.max(mx,Math.abs(p.v))});mx=Math.max(mx,0.05)*1.25;
+  var L=54,R=12,T=10,Bm=26,pw=W-L-R,ph=H-T-Bm,zero=T+ph/2;
+  function Y(v){return zero-v/mx*(ph/2)}
+  x.font="11px "+css("--mono");x.textBaseline="middle";x.textAlign="right";
+  [-mx,0,mx].forEach(function(v){x.strokeStyle=line;x.lineWidth=1;x.beginPath();x.moveTo(L,Y(v));x.lineTo(L+pw,Y(v));x.stroke();x.fillStyle=mut;x.fillText(v===0?"0.00%":(v>0?"+":"")+v.toFixed(2)+"%",L-6,Y(v))});
+  var bw=pw/d.length,lo=d[0],hi=d[0];
+  d.forEach(function(p){if(p.v<lo.v)lo=p;if(p.v>hi.v)hi=p});
+  d.forEach(function(p,i){
+    x.fillStyle=p.v>=0?up:dn;var h=Math.abs(Y(p.v)-zero),y=p.v>=0?Y(p.v):zero;
+    x.globalAlpha=0.9;x.fillRect(L+i*bw+bw*0.15,y,bw*0.7,Math.max(h,1));x.globalAlpha=1});
+  x.textAlign="center";x.textBaseline="alphabetic";x.fillStyle=mut;
+  var step=Math.ceil(d.length/(W<480?4:8));
+  d.forEach(function(p,i){if(i%step===0)x.fillText(lab(p.k).replace(":00",""),Math.min(L+i*bw+bw/2,W-18),H-8)});
+  x.fillStyle=ink;
+  d.forEach(function(p,i){if(p===lo||p===hi)x.fillText(p===lo?"cheapest":"priciest",Math.min(Math.max(L+i*bw+bw/2,L+24),W-30),p.v>=0?Y(p.v)-5:Y(p.v)+14)});
+}
+
+/* ============ PRICES tab ============ */
+function lvRow(cls,name,desc,val){return "<div class='lv "+cls+"'><div class='n'>"+name+"</div><div class='d'>"+desc+"</div><div class='x'>"+val+"</div></div>"}
+function planCard(name,p,status,cls,why,buyName,buyDesc,stopName,stopDesc){
+  var shares=p.ok&&p.shares>0
+    ?lvRow("","Shares to buy","So a stop-out costs about "+m(S.budget)+" ("+($("riskpct").value||1)+"% of your account). Total cost "+m(p.shares*p.entry)+".",p.shares)
+    :lvRow("","Shares to buy",p.ok?"Your account is too small for this plan at that risk.":"Not available.",p.ok?"0":"n/a");
+  return "<section class='panel plan'><header><h3>"+name+"</h3><span class='pill "+cls+"'>"+esc(status)+"</span></header><p class='why'>"+why+"</p>"+
+    lvRow("buy",buyName,buyDesc,m(p.entry))+
+    lvRow("stop",stopName,stopDesc+(p.ok?" That is "+p.stopPct.toFixed(1)+"% below your buy price.":""),m(p.stop))+
+    lvRow("sell","Sell target 1","Gain of 2R. Sell half your shares here, then move your stop up to your buy price.",m(p.t2))+
+    lvRow("sell","Sell target 2","Gain of 3R. Sell the rest here, or trail a stop under the price.",m(p.t3))+
+    shares+"</section>";
+}
+function renderLevels(){
+  var tcls=S.up?"buy":(S.down?"stop":"mute"), rsN=S.R===null?"n/a":S.R.toFixed(0);
+  var rnote=S.R===null?"":(S.R>=70?"Rose a lot lately.":(S.R<=30?"Fell a lot lately.":"Normal range."));
+  var html=
+   "<section class='panel'><h2>The numbers behind it"+tag()+"</h2><div class='stats'>"+
+    "<div class='stat'><div class='k'>Last close</div><div class='v'>"+m(S.c)+"</div><div class='s'>"+dt(S.last.t)+"</div></div>"+
+    "<div class='stat'><div class='k'>Trend</div><div class='v' style='font-size:16px;padding-top:4px'><span class='pill "+tcls+"'>"+S.trend+"</span></div><div class='s'>Price vs its 20 and 50-day averages</div></div>"+
+    "<div class='stat'><div class='k'>Normal daily move (ATR)</div><div class='v'>"+m(S.A)+"</div><div class='s'>"+(S.A/S.c*100).toFixed(1)+"% of the price</div></div>"+
+    "<div class='stat'><div class='k'>Momentum (RSI)</div><div class='v'>"+rsN+"</div><div class='s'>"+rnote+" Over 70 hot, under 30 cold.</div></div>"+
+   "</div><div class='gauge' aria-hidden='true'><i style='left:"+Math.max(0,Math.min(100,(S.c-S.ll52)/(S.hh52-S.ll52||1)*100)).toFixed(1)+"%'></i></div><div class='gl2'><span>"+m(S.ll52)+"</span><span>52-week range</span><span>"+m(S.hh52)+"</span></div>"+
+   "<p class='note' style='margin-top:8px'>The black marker is today's price. Near the left, it is close to its yearly low. Near the right, close to its yearly high."+(bars.length<250?" (Fewer than a year of days loaded.)":"")+"</p></section>"+
+   "<section class='panel'><h2>Chart, last 120 days"+tag()+"</h2><div class='chartbar'><div class='seg' role='group' aria-label='Plan shown on chart'>"+
+     "<button type='button' id='seg-b' aria-pressed='"+(view==="b")+"'>Breakout plan</button><button type='button' id='seg-p' aria-pressed='"+(view==="p")+"'>Pullback plan</button></div></div>"+
+     "<div class='chartbox'><canvas id='cv' role='img' aria-label='Price chart with moving averages and plan levels'></canvas></div>"+
+     "<div class='cw' style='height:84px;margin-top:6px'><canvas id='cvRsi' role='img' aria-label='RSI momentum strip'></canvas></div><p class='cap'>Lower strip is RSI, a 0 to 100 score of recent buying. Above 70 (orange zone) the stock rose fast and can be stretched. Below 30 (green zone) it fell fast and can be oversold.</p>"+
+     "<p class='note' style='margin-top:6px'>Black line: closing price. Teal: 20-day average. Gold: 50-day average. Dashed lines: your buy, stop-loss and first sell target.</p></section>"+
+   "<section class='panel'><h2>Your trade on one line"+tag()+"</h2><div class='cw' style='height:150px'><canvas id='cvRuler' role='img' aria-label='Ruler showing stop-loss, buy price, sell targets and current price'></canvas></div>"+
+     "<p class='cap'>Shows the plan selected above ("+(view==="b"?"breakout":"pullback")+"). Red stretch: what you risk. Green stretch: what you could gain. The black arrow is the current price.</p></section>"+
+   planCard("Pullback buy",S.p,S.ps,S.pc,
+      S.up?"The trend is up. Wait for a dip back to the 20-day average, then buy near "+m(S.s20)+".":"This rule needs price above the 50-day average and the 20-day above the 50-day. That is not true now.",
+      "Buy price","The dip level to buy at (the 20-day average).","Stop-loss","Sell if price falls to here. It sits under the 50-day average and the 10-day low.")+
+   planCard("Breakout buy",S.b,S.bs,S.bc,
+      "Buy when price pushes above its highest price of the last 20 days, "+m(S.hi20)+". Buyers are taking control.",
+      "Buy price","Place a buy order just above the recent high.","Stop-loss","Sell if price falls to here. It is 1.5 times a normal daily move below your buy.");
+  var e=parseFloat($("entry").value), sh=parseFloat($("shares").value);
+  if(e>0){
+    var A=S.A, init=e-1.5*A, risk=e-init, trail=S.hi22-3*A, stop=Math.max(init,trail), t2=e+2*risk, t3=e+3*risk, c=S.c, rm=(c-e)/risk, pl=(c-e)*(sh>0?sh:1), plp=(c/e-1)*100, call,cc;
+    if(c<=stop){call="Price is at or under your stop. The plan says sell.";cc="stop"}
+    else if(c>=t3){call="Second target reached. The plan says take profit and trail the rest.";cc="buy"}
+    else if(c>=t2){call="First target reached. The plan says sell half and trail your stop.";cc="buy"}
+    else if(c<e){call="Below what you paid but above the stop. The plan says hold unless it falls to the stop.";cc="warn"}
+    else {call="Above what you paid, no target hit. The plan says hold and keep the stop updated.";cc="mute"}
+    html+="<section class='panel'><h2>If you already own it</h2><div class='verdict "+(cc==="mute"?"warn":cc)+"'><div class='big' style='font-size:17px'>"+call+"</div></div>"+
+      lvRow("","Profit or loss",(rm>=0?"+":"")+rm.toFixed(2)+"R, "+pct(plp,1)+" since you paid "+m(e)+".",(sh>0?m(pl):m(pl)+"/sh"))+
+      lvRow("stop","Sell if price falls to",trail>init?"A trailing stop that follows the price up (3 daily moves under the recent high).":"Your starting stop-loss (1.5 daily moves under what you paid).",m(stop))+
+      lvRow("sell","Sell target 1",c>=t2?"Already reached.":pct((t2/c-1)*100,1)+" from the current price. Sell half.",m(t2))+
+      lvRow("sell","Sell target 2",c>=t3?"Already reached.":pct((t3/c-1)*100,1)+" from the current price. Sell the rest.",m(t3))+
+      (sh>0?"<p class='note' style='margin-top:8px'>If price falls to the stop and you sell, you would "+((stop-e)*sh>=0?"still keep about "+m((stop-e)*sh)+" of profit":"lose about "+m(Math.abs((stop-e)*sh)))+" compared with what you paid.</p>":"")+"</section>";
+  } else {
+    html+="<section class='panel'><h2>If you already own it</h2><p class='note'>Open Data and settings, enter the price you paid and the shares you own, and this box will show where to sell and where your stop-loss belongs.</p></section>";
+  }
+  $("tab-lev").innerHTML=html;
+  var sb=$("seg-b"),sp=$("seg-p");
+  sb.addEventListener("click",function(){view="b";renderLevels();});
+  sp.addEventListener("click",function(){view="p";renderLevels();});
+  if(tab==="lev") drawActive();
+}
+function drawPrice(){
+  var cv=$("cv"); if(!cv||!S)return;
+  var dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight; if(!W||!H)return;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  var x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+  var N=Math.min(120,bars.length), v=bars.slice(-N), plan=view==="b"?S.b:S.p;
+  var ink=css("--ink"),mut=css("--muted"),line=css("--line"),acc=css("--accent"),buy=css("--buy"),stp=css("--stop"),sell=css("--sell"),warn=css("--warn");
+  var lo=Infinity,hi=-Infinity,i;
+  for(i=0;i<v.length;i++){lo=Math.min(lo,v[i].l);hi=Math.max(hi,v[i].h)}
+  [plan.entry,plan.stop,plan.t2].forEach(function(q){if(isFinite(q)){lo=Math.min(lo,q);hi=Math.max(hi,q)}});
+  var pad=(hi-lo)*0.06;lo-=pad;hi+=pad;
+  var L=8,Rm=58,T=8,B=22,pw=W-L-Rm,ph=H-T-B;
+  function X(k){return L+pw*k/(N-1)}
+  function Y(p){return T+ph*(1-(p-lo)/(hi-lo))}
+  x.font="11px "+css("--mono");x.textBaseline="middle";
+  x.strokeStyle=line;x.lineWidth=1;x.fillStyle=mut;
+  for(i=0;i<=4;i++){var gp=lo+(hi-lo)*i/4,gy=Y(gp);x.beginPath();x.moveTo(L,gy);x.lineTo(L+pw,gy);x.stroke();x.textAlign="left";x.fillText(gp.toFixed(2),L+pw+5,gy)}
+  if(view==="p"&&S.s50!==null){x.fillStyle=acc;x.globalAlpha=0.12;x.fillRect(L,Y(S.s20),pw,Y(S.s50)-Y(S.s20));x.globalAlpha=1}
+  function maLine(n,col){x.strokeStyle=col;x.lineWidth=1.25;x.beginPath();var st=false;
+    for(var k=0;k<N;k++){var idx=bars.length-N+k;if(idx+1<n)continue;var s=0;for(var j=idx-n+1;j<=idx;j++)s+=bars[j].c;s/=n;
+      if(!st){x.moveTo(X(k),Y(s));st=true}else x.lineTo(X(k),Y(s))}x.stroke()}
+  maLine(50,warn);maLine(20,acc);
+  x.strokeStyle=ink;x.lineWidth=1.75;x.beginPath();
+  for(i=0;i<N;i++){i?x.lineTo(X(i),Y(v[i].c)):x.moveTo(X(i),Y(v[i].c))}x.stroke();
+  function lvl(p,col,label){if(!isFinite(p))return;x.strokeStyle=col;x.lineWidth=1.25;x.setLineDash([5,4]);x.beginPath();x.moveTo(L,Y(p));x.lineTo(L+pw,Y(p));x.stroke();x.setLineDash([]);
+    x.fillStyle=col;x.textAlign="left";x.fillText(label+" "+p.toFixed(2),L+4,Y(p)-7)}
+  lvl(plan.t2,sell,"sell");lvl(plan.entry,buy,"buy");lvl(plan.stop,stp,"stop");
+  x.fillStyle=ink;x.beginPath();x.arc(X(N-1),Y(S.c),3.5,0,7);x.fill();
+  x.textBaseline="alphabetic";x.textAlign="left";x.fillStyle=mut;x.fillText(dt(v[0].t),L,H-6);
+  x.textAlign="right";x.fillText(dt(v[N-1].t),L+pw,H-6);
+}
+
+
+/* ============ more graphs ============ */
+function cvs(id){
+  var cv=$(id); if(!cv)return null;
+  var dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight; if(!W||!H)return null;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  var x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+  return {x:x,W:W,H:H};
+}
+function pal(){return {ink:css("--ink"),mut:css("--muted"),line:css("--line"),acc:css("--accent"),buy:css("--buy"),sell:css("--sell"),stop:css("--stop"),warn:css("--warn")}}
+function hourTicks(x,P,X,t0,t1,y,W){
+  x.font="11px "+css("--mono");x.textAlign="center";x.textBaseline="alphabetic";x.fillStyle=P.mut;
+  var step=W<480?2:1;
+  for(var h=Math.ceil(t0/60),i=0;h*60<=t1;h++,i++){ if(i%step)continue; x.fillText(h12(h*60)+(ap(h*60)==="AM"?"a":"p"),X(h*60),y)}
+}
+function nyNow(){
+  try{
+    var parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"numeric",hour12:false,weekday:"short"}).formatToParts(new Date()),o={};
+    parts.forEach(function(p){o[p.type]=p.value});
+    return {min:(+o.hour%24)*60+ +o.minute,wd:o.weekday};
+  }catch(e){return null}
+}
+function zl(keys,B){return groupKeys(keys,B).map(function(g){return rng(g.s,g.e-g.s)}).join("<br>")}
+function groupKeys(keys,B){var q=keys.slice().sort(function(a,b){return a-b}),g=[];q.forEach(function(k){if(g.length&&g[g.length-1].e===k){g[g.length-1].e=k+B}else g.push({s:k,e:k+B})});return g}
+function shadeZones(x,P,X,T,top,bot,Z,labels){
+  [[Z.buy,P.buy,"BUY"],[Z.sell,P.sell,"SELL"]].forEach(function(q){
+    groupKeys(q[0],T.B).forEach(function(g){
+      x.globalAlpha=0.22;x.fillStyle=q[1];x.fillRect(X(g.s),top,X(g.e)-X(g.s),bot-top);x.globalAlpha=1;
+      if(labels){x.fillStyle=q[1];x.font="600 11px "+css("--sans");x.textAlign="center";x.textBaseline="top";x.fillText(q[2],(X(g.s)+X(g.e))/2,top+3)}})});
+}
+/* Summary: the trading day as a timeline */
+function drawTimeline(){
+  var c=cvs("cvTl"); if(!c||!TT)return; var T=TT,P=pal(),x=c.x,W=c.W,H=c.H,L=10,R=10,top=6,bot=H-22,pw=W-L-R;
+  function X(mn){return L+pw*(mn-T.t0)/(T.t1-T.t0)}
+  var Z=zones(T); shadeZones(x,P,X,T,top,bot,Z,true);
+  x.strokeStyle=P.line;x.lineWidth=1;x.beginPath();x.moveTo(L,bot);x.lineTo(L+pw,bot);x.stroke();
+  hourTicks(x,P,X,T.t0,T.t1,H-6,W);
+  var vals=T.avgShape.map(function(p){return p.v}),mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals); if(mx-mn<1e-9){mx=mn+1}
+  x.strokeStyle=P.ink;x.lineWidth=1.75;x.beginPath();
+  T.avgShape.forEach(function(p,i){var px=X(p.k+T.B/2),py=bot-8-(p.v-mn)/(mx-mn)*(bot-top-34);i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();
+  if(T.t0<720&&T.t1>720){x.strokeStyle=P.mut;x.lineWidth=1;x.setLineDash([2,4]);x.beginPath();x.moveTo(X(720),top);x.lineTo(X(720),bot);x.stroke();x.setLineDash([]);
+    x.fillStyle=P.mut;x.font="600 11px "+css("--sans");x.textAlign="center";x.textBaseline="top";x.fillText("noon",X(720)+16,top+3)}
+  var nn=nyNow();
+  if(nn&&nn.wd!=="Sat"&&nn.wd!=="Sun"&&nn.min>=T.t0&&nn.min<=T.t1){x.strokeStyle=P.stop;x.setLineDash([3,3]);x.beginPath();x.moveTo(X(nn.min),top);x.lineTo(X(nn.min),bot);x.stroke();x.setLineDash([]);
+    x.fillStyle=P.stop;x.font="600 11px "+css("--sans");x.textAlign="center";x.textBaseline="top";x.fillText("now",Math.min(Math.max(X(nn.min),L+14),W-R-14),bot-16)}
+}
+/* Times: dot plot of where each day's low and high fell */
+function drawDot(){
+  var c=cvs("cvDot"); if(!c||!TT)return; var T=TT,P=pal(),x=c.x,W=c.W,H=c.H,L=52,R=10,top=6,bot=H-22,pw=W-L-R;
+  function X(mn){return L+pw*(mn-T.t0)/(T.t1-T.t0)}
+  var rows=T.rows.slice(-30).reverse(), rh=(bot-top)/rows.length;
+  shadeZones(x,P,X,T,top,bot,zones(T),false);
+  x.strokeStyle=P.line;x.lineWidth=1;
+  for(var h=Math.ceil(T.t0/60);h*60<=T.t1;h++){x.beginPath();x.moveTo(X(h*60),top);x.lineTo(X(h*60),bot);x.stroke()}
+  hourTicks(x,P,X,T.t0,T.t1,H-6,W);
+  x.font="10.5px "+css("--mono");x.textAlign="right";x.textBaseline="middle";
+  rows.forEach(function(r,i){var y=top+rh*(i+0.5);
+    if(rh>=13||i%2===0){x.fillStyle=P.mut;x.fillText(new Date(Date.parse(r.day+"T00:00:00Z")).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"UTC"}),L-6,y)}
+    x.strokeStyle=P.line;x.beginPath();x.moveTo(X(r.lowT),y);x.lineTo(X(r.highT),y);x.stroke();
+    x.fillStyle=P.buy;x.beginPath();x.arc(X(r.lowT),y,Math.min(4.5,rh/2.4),0,7);x.fill();
+    x.fillStyle=P.sell;x.beginPath();x.arc(X(r.highT),y,Math.min(4.5,rh/2.4),0,7);x.fill()});
+}
+/* Times: by what time is the low / high already in */
+function cumData(T){
+  var a=0,b=0;return T.keys.map(function(k){a+=(T.lowH[k]||0);b+=(T.highH[k]||0);return {k:k,lo:a/T.n*100,hi:b/T.n*100}});
+}
+function drawCum(){
+  var c=cvs("cvCum"); if(!c||!TT)return; var T=TT,P=pal(),x=c.x,W=c.W,H=c.H,L=40,R=12,top=10,bot=H-22,pw=W-L-R;
+  function X(mn){return L+pw*(mn-T.t0)/(T.t1-T.t0)} function Y(v){return bot-(bot-top)*v/100}
+  x.font="11px "+css("--mono");x.textBaseline="middle";x.textAlign="right";
+  [0,50,100].forEach(function(v){x.strokeStyle=P.line;x.lineWidth=1;if(v===50)x.setLineDash([4,4]);x.beginPath();x.moveTo(L,Y(v));x.lineTo(L+pw,Y(v));x.stroke();x.setLineDash([]);x.fillStyle=P.mut;x.fillText(v+"%",L-6,Y(v))});
+  hourTicks(x,P,X,T.t0,T.t1,H-6,W);
+  var d=cumData(T);
+  [["lo",P.buy],["hi",P.sell]].forEach(function(s2){
+    x.strokeStyle=s2[1];x.lineWidth=2.25;x.beginPath();x.moveTo(X(T.t0),Y(0));
+    d.forEach(function(p){x.lineTo(X(p.k+T.B),Y(p[s2[0]]))});x.stroke()});
+}
+/* Times: any single day, with the zones shaded */
+function drawDay(){
+  var c=cvs("cvDay"); if(!c||!TT)return; var T=TT,P=pal(),x=c.x,W=c.W,H=c.H,sel=($("daySel")||{}).value,a=T.dayBars[sel];
+  if(!a||!a.length)return;
+  var L=8,R=54,top=8,bot=H-22,pw=W-L-R, lo=Infinity,hi=-Infinity;
+  a.forEach(function(b){lo=Math.min(lo,b.l);hi=Math.max(hi,b.h)}); var pad=(hi-lo)*0.12||0.01;lo-=pad;hi+=pad;
+  function X(mn){return L+pw*(mn-T.t0)/(T.t1-T.t0)} function Y(v){return top+(bot-top)*(1-(v-lo)/(hi-lo))}
+  shadeZones(x,P,X,T,top,bot,zones(T),false);
+  x.font="11px "+css("--mono");x.textBaseline="middle";x.textAlign="left";
+  for(var i=0;i<=3;i++){var gp=lo+(hi-lo)*i/3,gy=Y(gp);x.strokeStyle=P.line;x.lineWidth=1;x.beginPath();x.moveTo(L,gy);x.lineTo(L+pw,gy);x.stroke();x.fillStyle=P.mut;x.fillText(gp.toFixed(2),L+pw+5,gy)}
+  hourTicks(x,P,X,T.t0,T.t1,H-6,W);
+  x.strokeStyle=P.ink;x.lineWidth=1.75;x.beginPath();a.forEach(function(b,i){var px=X(b.min+(T.B>0?0:0)),py=Y(b.c);i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();
+  var lb=a[0],hb=a[0];a.forEach(function(b){if(b.l<lb.l)lb=b;if(b.h>hb.h)hb=b});
+  function mark(b,price,col,txt,above){var px=X(b.min),py=Y(price);x.fillStyle=col;x.beginPath();x.arc(px,py,5,0,7);x.fill();
+    x.font="600 11px "+css("--sans");x.textAlign="center";x.textBaseline="alphabetic";
+    var w=x.measureText(txt).width/2+2, tx=Math.min(Math.max(px,L+w),L+pw-w);
+    x.fillStyle=col;x.fillText(txt,tx,above?py-10:py+20)}
+  mark(lb,lb.l,P.buy,"LOW "+lab(lb.min)+" "+m(lb.l),false);
+  mark(hb,hb.h,P.sell,"HIGH "+lab(hb.min)+" "+m(hb.h),true);
+}
+/* Times: how much it moves in each slot */
+function drawVol(){
+  var c=cvs("cvVol"); if(!c||!TT)return; var T=TT,P=pal(),x=c.x,W=c.W,H=c.H,d=T.avgVol,L=44,R=8,top=16,bot=H-24,pw=W-L-R;
+  var mx=0;d.forEach(function(p){mx=Math.max(mx,p.v)}); mx=Math.max(mx,0.05)*1.1;
+  function Y(v){return bot-(bot-top)*v/mx}
+  x.font="11px "+css("--mono");x.textBaseline="middle";x.textAlign="right";
+  [0,mx/2,mx].forEach(function(v){x.strokeStyle=P.line;x.lineWidth=1;x.beginPath();x.moveTo(L,Y(v));x.lineTo(L+pw,Y(v));x.stroke();x.fillStyle=P.mut;x.fillText(v.toFixed(2)+"%",L-5,Y(v))});
+  var bw=pw/d.length,big=d[0];d.forEach(function(p){if(p.v>big.v)big=p});
+  d.forEach(function(p,i){x.fillStyle=p===big?P.warn:P.acc;x.globalAlpha=p===big?1:0.75;x.fillRect(L+i*bw+bw*0.15,Y(p.v),bw*0.7,bot-Y(p.v));x.globalAlpha=1});
+  x.textAlign="center";x.textBaseline="alphabetic";x.fillStyle=P.mut;var step=Math.ceil(d.length/(W<480?4:8));
+  d.forEach(function(p,i){if(i%step===0)x.fillText(lab(p.k).replace(":00",""),Math.min(L+i*bw+bw/2,W-26),H-6)});
+  x.fillStyle=P.ink;x.fillText(big.v.toFixed(2)+"%",Math.min(Math.max(L+d.indexOf(big)*bw+bw/2,L+16),W-24),Y(big.v)-5);
+}
+/* Prices: RSI strip */
+function rsiSeries(a,n){
+  var out=new Array(a.length).fill(null); if(a.length<n+1)return out; var g=0,l=0,i,d;
+  for(i=1;i<=n;i++){d=a[i].c-a[i-1].c; if(d>=0)g+=d; else l-=d} g/=n;l/=n; out[n]=l===0?100:100-100/(1+g/l);
+  for(i=n+1;i<a.length;i++){d=a[i].c-a[i-1].c; g=(g*(n-1)+(d>0?d:0))/n; l=(l*(n-1)+(d<0?-d:0))/n; out[i]=l===0?100:100-100/(1+g/l)}
+  return out;
+}
+function drawRsi(){
+  var c=cvs("cvRsi"); if(!c||!S)return; var P=pal(),x=c.x,W=c.W,H=c.H,N=Math.min(120,bars.length),L=8,R=58,top=6,bot=H-6,pw=W-L-R;
+  var rs=rsiSeries(bars,14).slice(-N);
+  function X(k){return L+pw*k/(N-1)} function Y(v){return bot-(bot-top)*v/100}
+  x.globalAlpha=0.12;x.fillStyle=P.sell;x.fillRect(L,Y(100),pw,Y(70)-Y(100));x.fillStyle=P.buy;x.fillRect(L,Y(30),pw,Y(0)-Y(30));x.globalAlpha=1;
+  x.font="11px "+css("--mono");x.textBaseline="middle";x.textAlign="left";
+  [[70,"70 hot"],[30,"30 cold"]].forEach(function(q){x.strokeStyle=P.line;x.setLineDash([4,4]);x.beginPath();x.moveTo(L,Y(q[0]));x.lineTo(L+pw,Y(q[0]));x.stroke();x.setLineDash([]);x.fillStyle=P.mut;x.fillText(q[1],L+pw+5,Y(q[0]))});
+  x.strokeStyle=P.acc;x.lineWidth=1.75;x.beginPath();var st=false;rs.forEach(function(v,i){if(v===null)return;if(!st){x.moveTo(X(i),Y(v));st=true}else x.lineTo(X(i),Y(v))});x.stroke();
+}
+/* Prices: stop, buy, targets and the current price on one ruler */
+function drawRuler(){
+  var c=cvs("cvRuler"); if(!c||!S)return; var P=pal(),x=c.x,W=c.W,H=c.H,plan=view==="b"?S.b:S.p,L=18,R=18,pw=W-L-R,yl=64;
+  var pts=[{v:plan.stop,n:"Stop",col:P.stop},{v:plan.entry,n:"Buy",col:P.buy},{v:plan.t2,n:"Sell 1",col:P.sell},{v:plan.t3,n:"Sell 2",col:P.sell}];
+  var lo=Math.min(plan.stop,S.c),hi=Math.max(plan.t3,S.c),pad=(hi-lo)*0.05;lo-=pad;hi+=pad;
+  function X(v){return L+pw*(v-lo)/(hi-lo)}
+  x.globalAlpha=0.2;x.fillStyle=P.stop;x.fillRect(X(plan.stop),yl-9,X(plan.entry)-X(plan.stop),18);
+  x.fillStyle=P.buy;x.fillRect(X(plan.entry),yl-9,X(plan.t3)-X(plan.entry),18);x.globalAlpha=1;
+  x.strokeStyle=P.line;x.lineWidth=2;x.beginPath();x.moveTo(L,yl);x.lineTo(L+pw,yl);x.stroke();
+  pts.forEach(function(p,i){
+    var px=X(p.v), tier=i%2, ny=yl+(tier?60:26), vy=ny+14, tx=Math.min(Math.max(px,L+22),W-R-22);
+    x.strokeStyle=p.col;x.globalAlpha=0.5;x.lineWidth=1;x.beginPath();x.moveTo(px,yl+6);x.lineTo(px,ny-11);x.stroke();x.globalAlpha=1;
+    x.fillStyle=p.col;x.beginPath();x.arc(px,yl,6,0,7);x.fill();
+    x.textAlign="center";x.textBaseline="alphabetic";
+    x.font="600 12px "+css("--sans");x.fillStyle=p.col;x.fillText(p.n,tx,ny);
+    x.font="12px "+css("--mono");x.fillStyle=P.ink;x.fillText(m(p.v),tx,vy)});
+  var cx=X(S.c), nx=Math.min(Math.max(cx,L+44),W-R-44);
+  x.fillStyle=P.ink;x.beginPath();x.moveTo(cx,yl-10);x.lineTo(cx-6,yl-21);x.lineTo(cx+6,yl-21);x.closePath();x.fill();
+  x.textAlign="center";x.textBaseline="alphabetic";x.font="600 12px "+css("--sans");x.fillText("Now "+m(S.c),nx,yl-28);
+}
+
+/* ============ Claude help ============ */
+var sampleFn=null, aiLast="";
+function periods(){return [[1,"1 day"],[3,"3 days"],[5,"1 week"],[21,"1 month"]].map(function(q){var a=analyseT(q[0]);return a?(q[1]+": low "+rng(a.rl[0],a.B)+", high "+rng(a.rh[0],a.B)+" ("+a.n+" days)"):(q[1]+": n/a")})}
+function buildSummary(){
+  var tk=($("ticker").value||"").trim().toUpperCase()||"TICKER", lines=[];
+  lines.push("Stock: "+tk+(isExample?" (daily prices are EXAMPLE data)":"")+(iEx?" (time-of-day prices are EXAMPLE data)":""));
+  lines.push("Last close "+m(S.c)+" on "+dt(S.last.t)+". Trend: "+S.trend+". Normal daily move (ATR) "+m(S.A)+". RSI "+(S.R===null?"n/a":S.R.toFixed(0))+". 52-week range "+m(S.ll52)+" to "+m(S.hh52)+".");
+  lines.push("Pullback plan ("+S.ps+"): buy "+m(S.p.entry)+", stop "+m(S.p.stop)+", sell 1 "+m(S.p.t2)+", sell 2 "+m(S.p.t3)+".");
+  lines.push("Breakout plan ("+S.bs+"): buy "+m(S.b.entry)+", stop "+m(S.b.stop)+", sell 1 "+m(S.b.t2)+", sell 2 "+m(S.b.t3)+".");
+  if(TT){var Z=zones(TT);
+    lines.push("Time of day, last "+TT.n+" trading days, "+TT.B+"-minute slots, New York time:");
+    lines.push("Lows (buy window): "+Z.buy.map(function(k){return rng(k,TT.B)+" ("+(TT.lowH[k]||0)+" of "+TT.n+" days)"}).join("; ")+".");
+    lines.push("Highs (sell window): "+Z.sell.map(function(k){return rng(k,TT.B)+" ("+(TT.highH[k]||0)+" of "+TT.n+" days)"}).join("; ")+".");
+    if(Z.vol.length)lines.push("Both low and high equally often at: "+Z.vol.map(function(k){return rng(k,TT.B)}).join(", ")+" (most volatile slot).");
+    lines.push("Periods: "+periods().join(" | ")+".");}
+  var e=parseFloat($("entry").value),sh=parseFloat($("shares").value);
+  if(e>0)lines.push("User owns it: paid "+m(e)+(sh>0?", "+sh+" shares":"")+".");
+  lines.push("User account size "+m(parseFloat($("account").value)||0)+", risk per trade "+($("riskpct").value||1)+"%.");
+  return lines.join("\n");
+}
+async function aiExplain(){
+  var out=$("aiOut"); out.hidden=false; out.textContent="Claude is reading your numbers...";
+  var prompt="You are a patient teacher explaining a stock-timing tool to a complete beginner. Below is what the tool computed. In plain English, under 170 words, in short paragraphs: (1) what the data says about when this stock is usually cheapest and most expensive during the day, and how reliable that looks given the number of days; (2) whether the buy, stop-loss and sell levels look sensible and what the biggest risk is; (3) two things to check before trading real money. Do not tell the user to buy or sell and do not predict prices. If any data is marked EXAMPLE, say so first.\n\nDATA:\n"+buildSummary();
+  try{
+    var r=await sampleFn(prompt,{cache:false,onText:function(t){aiLast=t.text;out.textContent=t.text}});
+    if(r&&r.text){aiLast=r.text;out.textContent=r.text}
+  }catch(e){
+    out.textContent=(e&&e.code==="rate_limited")?"Too many requests. Try again in a minute.":((e&&e.code==="not_granted")?"Claude help was not allowed for this page.":"Claude could not answer right now. Use Copy summary and paste it into your chat with Claude.");
+  }
+}
+function aiCopy(){
+  var t=buildSummary()+"\n\nPlease explain this to me like I'm new to trading: when are the best times to buy and sell, do the price levels make sense, and what should I double-check? (Not asking for financial advice.)";
+  var ta=$("aiText"); ta.value=t; ta.closest("details").open=true; ta.focus(); ta.select();
+  var done=function(ok){$("aiCopyMsg").textContent=ok?"Copied. Paste it into your chat with Claude.":"Select the text below and copy it, then paste it into your chat with Claude."; $("aiCopyMsg").hidden=false};
+  try{navigator.clipboard.writeText(t).then(function(){done(true)},function(){done(false)})}catch(e){done(false)}
+}
+(async function(){try{if(window.claude&&window.claude.use){var sm=await window.claude.use("sample"); if(sm){sampleFn=sm; if(S)renderSummary()}}}catch(e){}})();
+$("tab-sum").addEventListener("click",function(ev){var t=ev.target.closest("button");if(!t)return;if(t.id==="aiExplain"&&sampleFn)aiExplain();if(t.id==="aiCopy")aiCopy()});
+
+
+/* ============ Top 50: real market ranking ============ */
+var SP_PG=window.__sp||12500, SP_TD=window.__sp||7700;
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+function loadJSON(k){try{return JSON.parse(localStorage.getItem(k)||"{}")||{}}catch(e){return {}}}
+function saveJSON(k,o){try{localStorage.setItem(k,JSON.stringify(o));return true}catch(e){return false}}
+var mdays=loadJSON("tl_days"), SC=loadJSON("tl_scan"), topWin=21, topSort="score", busy=false, stopFlag=false, rankRows=[], rankDates=[];
+try{var mk=localStorage.getItem("tl_mkey");if(mk)$("mkey").value=mk}catch(e){}
+function trimDays(){Object.keys(mdays).sort().reverse().slice(26).forEach(function(d){delete mdays[d]})}
+function nyToday(){return new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}
+function prevDate(d){var x=new Date(d+"T00:00:00Z");x.setUTCDate(x.getUTCDate()-1);return x.toISOString().slice(0,10)}
+function isWeekend(d){var w=new Date(d+"T00:00:00Z").getUTCDay();return w===0||w===6}
+function fmtM(v){return v>=1e9?"$"+(v/1e9).toFixed(1)+"B":(v>=1e6?"$"+(v/1e6).toFixed(0)+"M":"$"+Math.round(v/1e3)+"K")}
+function tstat(t,bad){var e=$("topStat");e.textContent=t||"";e.hidden=!t;e.className="msg"+(bad?" bad":"")}
+function tprog(f){var w=$("progWrap");w.hidden=f===null;if(f!==null)$("progBar").style.width=Math.round(f*100)+"%"}
+async function pgGet(path){
+  var bases=["https://api.polygon.io","https://api.massive.com"], last=null;
+  for(var b=0;b<bases.length;b++){
+    last=null;
+    for(var tr=0;tr<3;tr++){
+      var r,j;
+      try{r=await fetch(bases[b]+path)}catch(e){last=new Error("network");last.net=true;break}
+      if(r.status===429){await sleep(window.__sp?5:13000);last=new Error("The market data service is rate limiting. Wait a minute and try again.");continue}
+      try{j=await r.json()}catch(e){last=new Error("The market data service sent a reply this page could not read (HTTP "+r.status+").");break}
+      if(r.status===401||r.status===403||(j&&(j.status==="NOT_AUTHORIZED"||j.status==="ERROR"))){var er=new Error((j&&(j.message||j.error))||("HTTP "+r.status));er.api=true;throw er}
+      return j;
+    }
+    if(last&&!last.net)throw last;
+  }
+  throw last||new Error("failed");
+}
+async function loadMarketDay(date,key){
+  var j=await pgGet("/v2/aggs/grouped/locale/us/market/stocks/"+date+"?adjusted=true&apiKey="+encodeURIComponent(key));
+  if(!j||!j.results||!j.results.length)return [];
+  var arr=[];
+  j.results.forEach(function(r){
+    var T=r.T; if(!/^[A-Z]{1,5}$/.test(T))return; if(T.length===5&&/[WUR]$/.test(T))return;
+    if(!(r.c>=2&&r.o>0&&r.v>0&&r.h>=r.l))return;
+    arr.push([T,r.o,r.h,r.l,r.c,(r.vw||r.c)*r.v]);
+  });
+  arr.sort(function(a,b){return b[5]-a[5]});
+  return arr.slice(0,500);
+}
+async function rankMarket(){
+  if(busy){stopFlag=true;tstat("Stopping after this request...");return}
+  var key=($("mkey").value||"").trim();
+  if(!key){tstat("Paste your free market data key first (massive.com).",true);return}
+  try{localStorage.setItem("tl_mkey",key)}catch(e){}
+  busy=true;stopFlag=false;$("rankBtn").textContent="Stop";
+  try{
+    var need=topWin, got=[], d=nyToday(), attempts=0, fetched=0, est=need;
+    while(got.length<need&&attempts<need+12&&!stopFlag){
+      d=prevDate(d);attempts++;
+      if(isWeekend(d))continue;
+      if(mdays[d]!==undefined){if(mdays[d].length)got.push(d);continue}
+      tstat("Downloading market day "+(got.length+1)+" of "+need+" ("+d+")... about "+Math.max(1,Math.round((need-got.length)*SP_PG/60000))+" min left");
+      tprog(got.length/need);
+      var arr=await loadMarketDay(d,key);
+      mdays[d]=arr; fetched++;
+      if(arr.length)got.push(d);
+      trimDays();saveJSON("tl_days",mdays);
+      computeRank();renderTop();
+      if(got.length<need&&!stopFlag)await sleep(SP_PG);
+    }
+    tprog(null);
+    computeRank();renderTop();
+    tstat(stopFlag?"Stopped. Showing what was downloaded.":"Ranked "+rankRows.length+" stocks from "+rankDates.length+" trading day"+(rankDates.length>1?"s":"")+". Now tap step 2 for buy and sell times.");
+  }catch(e){
+    tprog(null);
+    tstat(e.net?"The request was blocked before it reached the market data service. Open this file in Chrome or Safari (not Claude's preview). If it still fails there, tell Claude.":e.message,true);
+    computeRank();renderTop();
+  }
+  busy=false;stopFlag=false;$("rankBtn").textContent="1. Rank the market";
+}
+function computeRank(){
+  var ds=Object.keys(mdays).filter(function(d){return mdays[d].length}).sort().reverse().slice(0,topWin);
+  rankDates=ds.slice().reverse();
+  if(!ds.length){rankRows=[];return}
+  var agg={};
+  rankDates.forEach(function(d,idx){mdays[d].forEach(function(r){
+    var a=agg[r[0]]||(agg[r[0]]={sym:r[0],n:0,rs:0,ds:0,last:null,first:null});
+    a.n++;a.rs+=(r[2]-r[3])/r[1]*100;a.ds+=r[5];a.last={d:d,o:r[1],h:r[2],l:r[3],c:r[4]};if(!a.first)a.first={d:d,o:r[1]}})});
+  var min=Math.max(1,Math.ceil(rankDates.length*0.7)), out=[];
+  Object.keys(agg).forEach(function(k){var a=agg[k];if(a.n<min)return;
+    var range=a.rs/a.n,dv=a.ds/a.n;
+    out.push({sym:k,range:range,dv:dv,score:range*Math.log10(Math.max(dv,10)),last:a.last,chg:(a.last.c/a.first.o-1)*100,days:a.n})});
+  out.sort(function(x,y){return y[topSort]-x[topSort]});
+  rankRows=out.slice(0,50);
+}
+function statsFor(b5){
+  var w={};[1,3,5,21].forEach(function(n){var T=analyseT(n,b5,{t0:570,t1:960,B:30});if(!T)return;var z=zones(T);
+    w[n]={n:T.n,bk:z.buy[0],bn:T.lowH[z.buy[0]]||0,sk:z.sell[0],sn:T.highH[z.sell[0]]||0,gain:T.avgGain,vol:z.vol.length?1:0}});
+  return w;
+}
+async function addTimes(){
+  if(busy){stopFlag=true;tstat("Stopping after this request...");return}
+  var key=($("apikey").value||"").trim();
+  if(!rankRows.length){tstat("Run step 1 first.",true);return}
+  if(!key){tstat("Paste your free Twelve Data key first. Open Data and settings at the top.",true);$("setup").open=true;return}
+  busy=true;stopFlag=false;$("timesBtn").textContent="Stop";
+  var todo=rankRows.filter(function(r){var s2=SC[r.sym];return !(s2&&Date.now()-s2.ts<6*3600*1000)}), done=0, fails=[];
+  try{
+    for(var i=0;i<todo.length&&!stopFlag;i++){
+      var sym=todo[i].sym;
+      tstat("Getting buy and sell times: "+sym+" ("+(i+1)+" of "+todo.length+"). About "+Math.max(1,Math.round((todo.length-i)*SP_TD/60000))+" min left.");tprog(i/todo.length);
+      try{
+        var iv=await tdGet(tdUrl(sym,"5min",5000,key,"America/New_York")),re=/(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/,b5=[];
+        iv.forEach(function(v){var mt=String(v.datetime).match(re);if(!mt)return;var h=+v.high,l=+v.low,c=+v.close,o=+v.open;if(isFinite(h)&&isFinite(l)&&isFinite(c))b5.push({day:mt[1],min:+mt[2]*60+ +mt[3],o:isFinite(o)?o:c,h:h,l:l,c:c,v:+v.volume||0})});
+        if(b5.length<30)throw new Error("too little data");
+        SC[sym]={ts:Date.now(),w:statsFor(b5)};saveJSON("tl_scan",SC);done++;renderTop();
+      }catch(e){
+        if(e.net)throw e;
+        if(e.code===429||/credits|limit/i.test(e.message||"")){await sleep(window.__sp?5:20000);i--;continue}
+        if(e.code===401||/apikey|api key/i.test(e.message||""))throw e;
+        fails.push(sym);
+      }
+      if(i<todo.length-1&&!stopFlag)await sleep(SP_TD);
+    }
+    tprog(null);
+    tstat((stopFlag?"Stopped. ":"Done. ")+done+" stock"+(done===1?"":"s")+" updated."+(fails.length?" No intraday data for: "+fails.join(", ")+".":""));
+  }catch(e){
+    tprog(null);
+    tstat(e.net?"The request was blocked before it reached the data service. Open this file in Chrome or Safari (not Claude's preview).":e.message,true);
+  }
+  busy=false;stopFlag=false;$("timesBtn").textContent="2. Add buy and sell times";renderTop();
+}
+function renderTop(){
+  var out=$("topOut");
+  if(!rankRows.length){
+    out.innerHTML="<section class='panel'><h2>No ranking yet</h2><p class='note'>Paste your free market data key above and tap <b>1. Rank the market</b>. The page downloads real prices for every US stock, scores them, and lists the 50 most active day-trading stocks for the period you picked.</p></section>";
+    return;
+  }
+  var mx=0;rankRows.forEach(function(r){mx=Math.max(mx,r[topSort==="score"?"score":topSort])});
+  var wk=topWin, withT=rankRows.filter(function(r){return SC[r.sym]&&SC[r.sym].w&&SC[r.sym].w[wk]});
+  var per=rankDates.length?(dts(Date.parse(rankDates[0]+"T00:00:00Z"))+" to "+dts(Date.parse(rankDates[rankDates.length-1]+"T00:00:00Z"))):"";
+  var html="<section class='panel'><h2>Real market ranking</h2><p class='note'>"+rankDates.length+" trading day"+(rankDates.length>1?"s":"")+" ("+per+")"+(rankDates.length<topWin?". You picked "+topWin+" but only "+rankDates.length+" are downloaded, so tap step 1 again for more":"")+". Score = how far a stock moves in a day times how many dollars trade.</p>"+
+    (withT.length?"<h2 style='margin-top:14px'>When the "+withT.length+" stocks with times usually bottom and top</h2><div class='cw' style='height:190px'><canvas id='cvTop' role='img' aria-label='Number of stocks by usual buy slot and sell slot'></canvas></div><p id='topHistNote' class='cap'></p>":"")+"</section>";
+  html+="<section class='panel'><h2>Top "+rankRows.length+"</h2>"+rankRows.map(function(r,i){
+    var s2=SC[r.sym]&&SC[r.sym].w&&SC[r.sym].w[wk], B=30, bs="", tr="";
+    var v=r[topSort==="score"?"score":topSort];
+    if(s2){
+      bs="<div class='tc-b'><div class='b'><b>BUY AROUND</b><span>"+rng(s2.bk,B)+"</span><br>low here on "+s2.bn+" of "+s2.n+" days</div><div class='s'><b>SELL AROUND</b><span>"+rng(s2.sk,B)+"</span><br>high here on "+s2.sn+" of "+s2.n+" days</div></div>";
+      tr="<div class='trk' aria-hidden='true'><i class='g' style='left:"+Math.max(2,Math.min(98,(s2.bk+B/2-570)/390*100)).toFixed(1)+"%'></i><i class='o' style='left:"+Math.max(2,Math.min(98,(s2.sk+B/2-570)/390*100)).toFixed(1)+"%'></i></div><div class='gl2'><span>9:30 AM</span><span>4:00 PM</span></div>";
+    } else bs="<div class='tc-b'><div class='b'><b>BUY AROUND</b>not loaded yet</div><div class='s'><b>SELL AROUND</b>not loaded yet</div></div>";
+    return "<div class='tc'><div class='tc-h'><span class='rk'>#"+(i+1)+"</span><b class='sym'>"+esc(r.sym)+"</b><span class='px'>"+m(r.last.c)+"</span></div>"+
+      "<div class='scb'><i style='width:"+(mx?Math.max(3,v/mx*100):0).toFixed(0)+"%'></i></div>"+bs+tr+
+      "<div class='tc-n'>Moves about <b>"+r.range.toFixed(1)+"%</b> a day. Trades about <b>"+fmtM(r.dv)+"</b> a day. Last day ("+dts(Date.parse(r.last.d+"T00:00:00Z"))+"): low <b style='color:var(--buy)'>"+m(r.last.l)+"</b>, high <b style='color:var(--sell)'>"+m(r.last.h)+"</b>, closed "+m(r.last.c)+". Over the period: "+pct(r.chg,1)+".</div>"+
+      "<button class='btn ghost' type='button' data-an='"+esc(r.sym)+"'>Analyze "+esc(r.sym)+" in detail</button></div>";
+  }).join("")+"</section>";
+  out.innerHTML=html;
+  if(tab==="top")drawTopHist();
+}
+function drawTopHist(){
+  var c=cvs("cvTop"); if(!c)return; var P=pal(),x=c.x,W=c.W,H=c.H,wk=topWin,B=30,keys=[];
+  for(var k=570;k<960;k+=B)keys.push(k);
+  var bc={},sc={},n=0;
+  rankRows.forEach(function(r){var s2=SC[r.sym]&&SC[r.sym].w&&SC[r.sym].w[wk];if(!s2)return;n++;bc[s2.bk]=(bc[s2.bk]||0)+1;sc[s2.sk]=(sc[s2.sk]||0)+1});
+  if(!n)return;
+  var mx=1;keys.forEach(function(k){mx=Math.max(mx,bc[k]||0,sc[k]||0)});
+  var L=30,R=8,top=10,bot=H-24,pw=W-L-R,bw=pw/keys.length;
+  function Y(v){return bot-(bot-top)*v/mx}
+  x.font="11px "+css("--mono");x.textBaseline="middle";x.textAlign="right";
+  [0,mx].forEach(function(v){x.strokeStyle=P.line;x.lineWidth=1;x.beginPath();x.moveTo(L,Y(v));x.lineTo(L+pw,Y(v));x.stroke();x.fillStyle=P.mut;x.fillText(String(v),L-5,Y(v))});
+  keys.forEach(function(k,i){var gx=L+i*bw;
+    x.fillStyle=P.buy;x.fillRect(gx+bw*0.1,Y(bc[k]||0),bw*0.38,bot-Y(bc[k]||0));
+    x.fillStyle=P.sell;x.fillRect(gx+bw*0.52,Y(sc[k]||0),bw*0.38,bot-Y(sc[k]||0))});
+  x.textAlign="center";x.textBaseline="alphabetic";x.fillStyle=P.mut;var step=Math.ceil(keys.length/(W<480?4:8));
+  keys.forEach(function(k,i){if(i%step===0)x.fillText(lab(k).replace(":00",""),Math.min(L+i*bw+bw/2,W-24),H-6)});
+  var tb=keys.slice().sort(function(a,b){return (bc[b]||0)-(bc[a]||0)})[0],ts=keys.slice().sort(function(a,b){return (sc[b]||0)-(sc[a]||0)})[0];
+  var nt=$("topHistNote");if(nt)nt.innerHTML="Green bars: how many stocks usually hit their low in that slot (buy). Orange bars: how many hit their high (sell). Most stocks bottom out around <b>"+rng(tb,B)+"</b> ("+bc[tb]+" of "+n+") and top out around <b>"+rng(ts,B)+"</b> ("+sc[ts]+" of "+n+").";
+}
+$("twin").addEventListener("click",function(ev){var b=ev.target.closest("button");if(!b)return;topWin=+b.getAttribute("data-n");
+  Array.prototype.forEach.call($("twin").querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",String(x===b))});computeRank();renderTop();
+  var have=Object.keys(mdays).filter(function(d){return mdays[d].length}).length; if(have<topWin&&have>0)tstat("Only "+have+" trading days are downloaded. Tap step 1 to download "+(topWin-have>0?"the rest":"")+".");else tstat("")});
+$("tsort").addEventListener("change",function(){topSort=$("tsort").value;computeRank();renderTop()});
+$("rankBtn").addEventListener("click",rankMarket);
+$("timesBtn").addEventListener("click",addTimes);
+$("topOut").addEventListener("click",function(ev){var b=ev.target.closest("button[data-an]");if(!b)return;$("ticker").value=b.getAttribute("data-an");setTab("sum");fetchAll()});
+computeRank();renderTop();
+
+/* ============ render + tabs ============ */
+function renderAll(){
+  var tk=($("ticker").value||"").trim().toUpperCase()||"TICKER";
+  var acct=parseFloat($("account").value)||0, rp=parseFloat($("riskpct").value)||1;
+  S=calc(bars,acct,rp);
+  renderBanners(tk);
+  renderTimes();
+  renderSummary();
+  renderLevels();
+}
+function drawActive(){
+  if(tab==="sum")drawTimeline();
+  if(tab==="times"){drawDot();drawCum();drawDay();drawVol();drawShape()}
+  if(tab==="lev"){drawPrice();drawRsi();drawRuler()}
+  if(tab==="top")drawTopHist();
+}
+function setTab(t){
+  tab=t;
+  ["sum","times","lev","top","learn"].forEach(function(k){
+    $("tab-"+k).hidden=(k!==t);
+    $("tb-"+(k==="lev"?"lev":k)).setAttribute("aria-selected",String(k===t));
+  });
+  drawActive();
+  try{window.scrollTo({top:Math.max(0,$("tab-"+t).getBoundingClientRect().top+window.scrollY-70),behavior:"auto"})}catch(e){}
+}
+Array.prototype.forEach.call(document.querySelectorAll(".tabs button"),function(b){b.addEventListener("click",function(){setTab(b.getAttribute("data-t"))})});
+Array.prototype.forEach.call($("win").querySelectorAll("button"),function(b){b.addEventListener("click",function(){
+  winN=+b.getAttribute("data-n");
+  Array.prototype.forEach.call($("win").querySelectorAll("button"),function(x){x.setAttribute("aria-pressed",String(x===b))});
+  renderAll();
+})});
+
+/* ============ files ============ */
+function showMsg(id,t){var e=$(id);e.textContent=t||"";e.hidden=!t}
+$("load").addEventListener("click",function(){$("file").click()});
+$("load2").addEventListener("click",function(){$("file2").click()});
+$("file").addEventListener("change",function(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;var rd=new FileReader();
+  rd.onload=function(){try{bars=parseCSV(String(rd.result));isExample=false;fileName=f.name;showMsg("msg","");renderAll()}catch(e){showMsg("msg",e.message)}};
+  rd.onerror=function(){showMsg("msg","Could not read that file.")};rd.readAsText(f)});
+$("file2").addEventListener("change",function(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;var rd=new FileReader();
+  rd.onload=function(){try{ib=parseIntraday(String(rd.result));iEx=false;iName=f.name;showMsg("msg2","");renderAll()}catch(e){showMsg("msg2",e.message)}};
+  rd.onerror=function(){showMsg("msg2","Could not read that file.")};rd.readAsText(f)});
+["ticker","account","riskpct","entry","shares","t0","t1","bk"].forEach(function(id){$(id).addEventListener("input",function(){renderAll()})});
+
+/* ============ fetch by ticker (Twelve Data) ============ */
+var KEYN="tl_key";
+try{var kv=localStorage.getItem(KEYN);if(kv)$("apikey").value=kv}catch(e){}
+function fstat(t,bad){var e=$("fstat");e.textContent=t||"";e.hidden=!t;e.className="msg"+(bad?" bad":"")}
+function tdUrl(sym,interval,size,key,tz){return "https://api.twelvedata.com/time_series?symbol="+encodeURIComponent(sym)+"&interval="+interval+"&outputsize="+size+(tz?"&timezone="+encodeURIComponent(tz):"")+"&apikey="+encodeURIComponent(key)}
+async function tdGet(url){
+  var r,j;
+  try{r=await fetch(url)}catch(e){var ne=new Error("network");ne.net=true;throw ne}
+  try{j=await r.json()}catch(e){throw new Error("The data service sent a reply this page could not read (HTTP "+r.status+").")}
+  if(!j||j.status==="error"||!j.values){var er=new Error((j&&j.message)||"No data returned");er.code=j&&j.code;throw er}
+  return j.values.slice().reverse();
+}
+async function fetchAll(){
+  var sym=($("ticker").value||"").trim().toUpperCase(), key=($("apikey").value||"").trim();
+  if(!sym){fstat("Type a ticker first.",true);return}
+  if(!key){fstat("Paste your free data key first. Open Data and settings below.",true);$("setup").open=true;return}
+  try{localStorage.setItem(KEYN,key)}catch(e){}
+  var btn=$("fetch");btn.disabled=true;fstat("Getting "+sym+" daily prices...");
+  try{
+    var d=await tdGet(tdUrl(sym,"1day",400,key));
+    var nb=d.map(function(v){return {t:Date.parse(String(v.datetime).slice(0,10)+"T00:00:00Z"),h:+v.high,l:+v.low,c:+v.close}}).filter(function(b){return isFinite(b.t)&&isFinite(b.h)&&isFinite(b.l)&&isFinite(b.c)});
+    if(nb.length<30) throw new Error("Only "+nb.length+" days came back for "+sym+".");
+    bars=nb;isExample=false;fileName="Twelve Data (may be delayed)";showMsg("msg","");renderAll();
+    fstat("Daily prices loaded. Getting "+sym+" 5-minute prices...");
+    try{
+      var iv=await tdGet(tdUrl(sym,"5min",5000,key,"America/New_York")),re=/(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/,out=[];
+      iv.forEach(function(v){var mt=String(v.datetime).match(re);if(!mt)return;var o=+v.open,h=+v.high,l=+v.low,c=+v.close;
+        if(isFinite(h)&&isFinite(l)&&isFinite(c))out.push({day:mt[1],min:+mt[2]*60+ +mt[3],o:isFinite(o)?o:c,h:h,l:l,c:c,v:+v.volume||0})});
+      if(out.length<10) throw new Error("no 5-minute rows");
+      ib=out;iEx=false;iName="Twelve Data 5-minute";showMsg("msg2","");renderAll();
+      fstat("Loaded "+sym+": "+nb.length+" daily days and "+out.length+" five-minute bars. Prices may be delayed.");
+    }catch(e2){
+      fstat("Daily prices loaded for "+sym+". The 5-minute prices could not be loaded ("+(e2.net?"request blocked":e2.message)+"), so the time-of-day sections still show example data.",true);
+    }
+  }catch(e){
+    fstat((e&&(e.net||e.name==="TypeError"))?"The request was blocked before it reached the data service. Viewers like Claude's file preview block outside requests, so open this file in Chrome or Safari. If it still fails there, use the file buttons in Data and settings.":e.message,true);
+  }
+  btn.disabled=false;
+}
+$("fetch").addEventListener("click",fetchAll);
+$("ticker").addEventListener("keydown",function(e){if(e.key==="Enter")fetchAll()});
+
+/* ============ redraw hooks + start ============ */
+window.addEventListener("resize",drawActive);
+try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",drawActive)}catch(e){}
+new MutationObserver(drawActive).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+bars=exampleBars();ib=exampleIntraday();
+renderAll();
+})();
+</script>
+<script>
+if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});
+}
+</script>
