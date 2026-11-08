@@ -587,6 +587,48 @@ function verdictOf(){
   if(S.up) return {c:"warn",pill:"Wait",big:"Uptrend, but not at a buy level yet",txt:"The trend is up. The rules want a dip to the buy zone or a break above the recent high before buying."};
   return {c:"warn",pill:"Wait",big:"No clear trend",txt:"Price is moving sideways, so neither rule has a strong signal."};
 }
+/* POC: the price band where the most shares traded over the last 20 days (volume profile),
+   plus trend from swing highs and lows (higher highs and higher lows = bullish, the reverse = bearish). */
+function pocInfo(B){
+  var n=20; if(!B||B.length<n+10) return null;
+  var W=B.slice(-n), lo=Math.min.apply(null,W.map(function(b){return b.l})), hi=Math.max.apply(null,W.map(function(b){return b.h}));
+  if(!(hi>lo)||!W.some(function(b){return b.v>0})) return null;
+  var K=24, step=(hi-lo)/K, vol=[];for(var k=0;k<K;k++)vol.push(0);
+  W.forEach(function(b){var tp=(b.h+b.l+b.c)/3, i=Math.min(K-1,Math.max(0,Math.floor((tp-lo)/step)));vol[i]+=b.v});
+  var mi=0;vol.forEach(function(x,i){if(x>vol[mi])mi=i});
+  var poc=lo+(mi+0.5)*step;
+  var P=B.slice(-60), hs=[], ls=[];
+  for(var i=2;i<P.length-2;i++){
+    if(P[i].h>P[i-1].h&&P[i].h>P[i-2].h&&P[i].h>P[i+1].h&&P[i].h>P[i+2].h)hs.push(P[i].h);
+    if(P[i].l<P[i-1].l&&P[i].l<P[i-2].l&&P[i].l<P[i+1].l&&P[i].l<P[i+2].l)ls.push(P[i].l);
+  }
+  var trend="unclear";
+  if(hs.length>=2&&ls.length>=2){
+    var h1=hs[hs.length-1],h0=hs[hs.length-2],l1=ls[ls.length-1],l0=ls[ls.length-2];
+    if(h1>h0&&l1>l0)trend="bullish"; else if(h1<h0&&l1<l0)trend="bearish";
+  }
+  var last=B[B.length-1].c, gap=(last-poc)/poc*100;
+  return {poc:poc,trend:trend,last:last,gap:gap,n:n};
+}
+function pocPanel(){
+  if(!TT&&!bars) return "";
+  var I=pocInfo(bars);
+  if(!I) return "<section class='panel'><h2>POC check"+(isExample?"<span class='ex-tag'>EXAMPLE</span>":"")+"</h2><p class='note'>Needs real daily prices with volume. Tap Get prices with your key first.</p></section>";
+  var near=Math.abs(I.gap)<=1.5, cls="note", lead="";
+  if(I.trend==="bullish"&&near){cls="buy";lead="Bullish, and the price is near the POC. This is the reel's pullback idea: watch whether the price holds above the POC, and put a stop just below it.";}
+  else if(I.trend==="bearish"&&near){cls="warn";lead="Bearish, and the price is near the POC. The mirror idea: watch whether the price stalls below the POC, with a stop just above it. Watch only unless you're allowed to short.";}
+  else if(I.trend==="bullish"){cls="buy";lead="Bullish, but the price is "+(I.gap>0?"above":"below")+" the POC by "+Math.abs(I.gap).toFixed(1)+"%. Wait for a pullback to the POC before looking at the buy.";}
+  else if(I.trend==="bearish"){cls="warn";lead="Bearish, but the price is "+(I.gap>0?"above":"below")+" the POC by "+Math.abs(I.gap).toFixed(1)+"%. Wait for a rally back to the POC before looking at a sell.";}
+  else{cls="note";lead="No clear trend. Higher highs and higher lows are not both there, and lower highs and lower lows are not both there. Stay out of this setup until the trend is clearer.";}
+  return "<section class='panel'><h2>POC check"+(isExample?"<span class='ex-tag'>EXAMPLE</span>":"")+"</h2>"+
+   "<p class='note'>The POC is the price where the most shares traded over the last "+I.n+" days. Prices tend to return to it, so it's a common place to look for a pullback or a rally back.</p>"+
+   "<div class='grid2' style='margin-top:10px'>"+
+    "<div class='statbox'><div class='k'>POC</div><div class='v'>$"+I.poc.toFixed(2)+"</div><div class='s'>most-traded price</div></div>"+
+    "<div class='statbox'><div class='k'>Trend</div><div class='v' style='text-transform:capitalize'>"+I.trend+"</div><div class='s'>higher highs and lows = bullish</div></div></div>"+
+   "<p style='margin-top:10px'>Last close $"+I.last.toFixed(2)+" is "+Math.abs(I.gap).toFixed(1)+"% "+(I.gap>=0?"above":"below")+" the POC.</p>"+
+   "<div class='verdict "+cls+"' style='margin-top:8px'><p style='margin:0'>"+lead+"</p></div>"+
+   "<p class='note' style='margin-top:8px'>This is a rule check on past prices and volume, not a prediction. Always set a stop-loss before you buy.</p></section>";
+}
 function noonPanel(){
   if(!TT||!TT.noon||TT.t0>=720||TT.t1<=720) return "";
   var N=TT.noon,B=TT.B;
@@ -641,6 +683,7 @@ function renderSummary(){
       "<p>Sell targets: <b>"+m(S.p.t2)+"</b> then <b>"+m(S.p.t3)+"</b> (pullback plan). Exit early if price falls to the stop-loss at <b>"+m(S.p.stop)+"</b>.</p></div></div>"+
    (strN?"<p class='note' style='margin-top:10px'>"+strN+"</p>":"")+
    "</section>"+
+   pocPanel()+
    noonPanel()+
    posHtml+
    "<section class='panel'><h2>Where Claude can help</h2><p class='note'>Claude can explain any of these numbers in plain English, check whether your plan makes sense, or answer your questions. The page does the math. Claude helps you understand it.</p>"+
@@ -1312,7 +1355,7 @@ async function fetchAll(){
   var btn=$("fetch");btn.disabled=true;fstat("Getting "+sym+" daily prices...");
   try{
     var d=await fetchDaily(sym,key);
-    var nb=d.map(function(v){return {t:Date.parse(String(v.datetime).slice(0,10)+"T00:00:00Z"),h:+v.high,l:+v.low,c:+v.close}}).filter(function(b){return isFinite(b.t)&&isFinite(b.h)&&isFinite(b.l)&&isFinite(b.c)});
+    var nb=d.map(function(v){return {t:Date.parse(String(v.datetime).slice(0,10)+"T00:00:00Z"),h:+v.high,l:+v.low,c:+v.close,v:+v.volume||0}}).filter(function(b){return isFinite(b.t)&&isFinite(b.h)&&isFinite(b.l)&&isFinite(b.c)});
     if(nb.length<30) throw new Error("Only "+nb.length+" days came back for "+sym+".");
     var yrs=nb.length?(nb[nb.length-1].t-nb[0].t)/(365.25*864e5):0;
     bars=nb;isExample=false;fileName="Twelve Data (may be delayed)";showMsg("msg","");renderAll();
