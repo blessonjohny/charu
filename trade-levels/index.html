@@ -608,7 +608,7 @@ function pocInfo(B){
     if(h1>h0&&l1>l0)trend="bullish"; else if(h1<h0&&l1<l0)trend="bearish";
   }
   var last=B[B.length-1].c, gap=(last-poc)/poc*100;
-  return {poc:poc,trend:trend,last:last,gap:gap,n:n};
+  return {poc:poc,trend:trend,last:last,gap:gap,n:n,bins:vol,lo:lo,step:step,K:K,hi:hi};
 }
 function pocPanel(){
   if(!TT&&!bars) return "";
@@ -625,6 +625,8 @@ function pocPanel(){
    "<div class='grid2' style='margin-top:10px'>"+
     "<div class='statbox'><div class='k'>POC</div><div class='v'>$"+I.poc.toFixed(2)+"</div><div class='s'>most-traded price</div></div>"+
     "<div class='statbox'><div class='k'>Trend</div><div class='v' style='text-transform:capitalize'>"+I.trend+"</div><div class='s'>higher highs and lows = bullish</div></div></div>"+
+   "<p class='note' style='margin-top:10px'>Volume by price. Each bar is how many shares traded in that price band over the last "+I.n+" days. The gold bar is the POC.</p>"+
+   "<div class='cw' style='height:260px;margin-top:6px'><canvas id='cvPoc' role='img' aria-label='Volume by price over the last "+I.n+" days, with the POC highlighted'></canvas></div>"+
    "<p style='margin-top:10px'>Last close $"+I.last.toFixed(2)+" is "+Math.abs(I.gap).toFixed(1)+"% "+(I.gap>=0?"above":"below")+" the POC.</p>"+
    "<div class='verdict "+cls+"' style='margin-top:8px'><p style='margin:0'>"+lead+"</p></div>"+
    "<p class='note' style='margin-top:8px'>This is a rule check on past prices and volume, not a prediction. Always set a stop-loss before you buy.</p></section>";
@@ -1285,9 +1287,31 @@ function renderAll(){
   renderTimes();
   renderSummary();
   renderLevels();
+  if(tab==="sum")drawPoc();
+}
+/* Volume-by-price bars for the POC check. Each bar is one price band; the gold bar is the POC; the dashed line is the last close. */
+function drawPoc(){
+  var c=cvs("cvPoc"); if(!c)return;
+  var I=pocInfo(bars); if(!I)return;
+  var P=pal(),x=c.x,W=c.W,H=c.H,L=58,R=12,top=8,bot=H-10,K=I.K,max=Math.max.apply(null,I.bins)||1;
+  var rowH=(bot-top)/K, pw=W-L-R;
+  function Y(p){return bot-(p-I.lo)/(I.hi-I.lo)*(bot-top)}
+  var mi=0;I.bins.forEach(function(v,i){if(v>I.bins[mi])mi=i});
+  for(var i=0;i<K;i++){
+    var v=I.bins[i], w=v/max*pw, y=bot-(i+1)*rowH;
+    x.fillStyle=i===mi?"#f5c542":"rgba(120,170,200,0.55)";
+    x.fillRect(L,y+1,Math.max(w,1),rowH-2);
+  }
+  x.font="600 11px "+css("--sans");x.textBaseline="middle";x.textAlign="right";x.fillStyle=P.mut;
+  [I.lo,I.poc,I.hi].forEach(function(p,k){x.fillText("$"+p.toFixed(2),L-6,Math.min(Math.max(Y(p),top+6),bot-6))});
+  var yp=Y(I.poc);
+  x.strokeStyle="#f5c542";x.lineWidth=1;x.setLineDash([]);x.beginPath();x.moveTo(L,yp);x.lineTo(W-R,yp);x.stroke();
+  if(I.last>=I.lo&&I.last<=I.hi){var yl=Y(I.last);x.strokeStyle="#ff9b6b";x.setLineDash([4,3]);x.beginPath();x.moveTo(L,yl);x.lineTo(W-R,yl);x.stroke();x.setLineDash([]);
+    x.fillStyle="#ff9b6b";x.textAlign="right";x.fillText("last",W-R,Math.min(Math.max(yl-8,top+6),bot-6))}
+  x.fillStyle="#f5c542";x.textAlign="left";x.fillText("POC",L+4,Math.min(Math.max(yp-8,top+6),bot-6));
 }
 function drawActive(){
-  if(tab==="sum")drawTimeline();
+  if(tab==="sum"){drawTimeline();drawPoc()}
   if(tab==="times"){drawDot();drawCum();drawDay();drawVol();drawShape()}
   if(tab==="lev"){drawPrice();drawRsi();drawRuler()}
   if(tab==="top")drawTopHist();
