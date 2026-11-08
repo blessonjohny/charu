@@ -189,7 +189,7 @@ textarea{width:100%;min-height:200px;font-family:var(--mono);font-size:12.5px;co
     <details id="setup" style="margin-top:6px">
       <summary>Data and settings</summary>
       <label for="apikey">Data key (free, from twelvedata.com)<input id="apikey" type="text" placeholder="paste your key" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
-      <p class="note">Sign up free at twelvedata.com (no card, 800 requests a day), paste the key once, then tap Get prices. It loads about 400 days of daily prices and about 60 days of 5-minute prices. Prices on the free plan can be delayed up to 15 minutes. This works when the page is opened in Chrome or Safari. Claude's built-in preview blocks it; use the file buttons below there.</p>
+      <p class="note">Sign up free at twelvedata.com (no card, 800 requests a day), paste the key once, then tap Get prices. It loads the longest daily history your key allows (up to about 120 years, usually 10 to 30) and about 60 days of 5-minute prices. Prices on the free plan can be delayed up to 15 minutes. This works when the page is opened in Chrome or Safari. Claude's built-in preview blocks it; use the file buttons below there.</p>
       <div class="grid2">
         <div><input id="file" type="file" accept=".csv,text/csv,text/plain" hidden><button class="btn ghost" id="load" type="button">Load daily CSV</button></div>
         <div><input id="file2" type="file" accept=".csv,text/csv,text/plain" hidden><button class="btn ghost" id="load2" type="button">Load 5-min CSV</button></div>
@@ -278,6 +278,12 @@ df[["Open","High","Low","Close","Volume"]].to_csv("aa_5m.csv")</pre>
         <p class="note">The free market key allows 5 requests a minute and the free Twelve Data key 8 a minute. Step 1 downloads one request per trading day (1 day: about 15 seconds, 1 week: about 1 minute, 1 month: about 5 minutes). Step 2 downloads one request per stock, about 7 minutes for 50. Keep the page open and the screen on. Results are saved in this browser, so the next visit is instant. Step 2 uses 50 of your 800 daily Twelve Data requests.</p>
       </details>
     </section>
+    <section class="panel">
+      <h2>Momentum list (reel rules)</h2>
+      <p class="note">Finds stocks priced $1 to $20, up 10% or more on the last day, with volume 5 times or more its usual level. It uses the data from step 1 above, so it adds no extra requests.</p>
+      <button class="btn" id="momBtn" type="button" style="margin-top:10px">Find momentum stocks</button>
+    </section>
+    <div id="momOut" class="stack"></div>
     <div id="topOut" class="stack"></div>
   </div>
 
@@ -1047,10 +1053,10 @@ async function loadMarketDay(date,key){
   j.results.forEach(function(r){
     var T=r.T; if(!/^[A-Z]{1,5}$/.test(T))return; if(T.length===5&&/[WUR]$/.test(T))return;
     if(!(r.c>=2&&r.o>0&&r.v>0&&r.h>=r.l))return;
-    arr.push([T,r.o,r.h,r.l,r.c,(r.vw||r.c)*r.v]);
+    arr.push([T,r.o,r.h,r.l,r.c,(r.vw||r.c)*r.v,r.v]);
   });
   arr.sort(function(a,b){return b[5]-a[5]});
-  return arr.slice(0,500);
+  return arr.slice(0,1500);
 }
 async function rankMarket(){
   if(busy){stopFlag=true;tstat("Stopping after this request...");return}
@@ -1097,6 +1103,42 @@ function computeRank(){
     out.push({sym:k,range:range,dv:dv,score:range*Math.log10(Math.max(dv,10)),last:a.last,chg:(a.last.c/a.first.o-1)*100,days:a.n})});
   out.sort(function(x,y){return y[topSort]-x[topSort]});
   rankRows=out.slice(0,50);
+}
+/* Momentum screen: uses only the daily data already downloaded in step 1 (no extra requests).
+   Rules from the reel: price $1 to $20, up 10% or more on the last day, volume 5x or more its usual level. */
+function momentumRows(){
+  var ds=Object.keys(mdays).filter(function(d){return mdays[d]&&mdays[d].length}).sort().reverse();
+  if(ds.length<11) return {err:"Run step 1 (Rank the market) first. The screen needs at least 11 trading days. Use 1 month for best results."};
+  var d0=ds[0], prev=ds.slice(1,21), prevMap={};
+  prev.forEach(function(d){var m={};mdays[d].forEach(function(r){m[r[0]]=r});prevMap[d]=m});
+  var last=prevMap[prev[0]], out=[], missingVol=false;
+  mdays[d0].forEach(function(r){
+    var sym=r[0], c=r[4], v0=r[6];
+    if(!(c>=1&&c<=20)) return;
+    if(v0===undefined){missingVol=true;return}
+    var p=last[sym]; if(!p) return;
+    var chg=(c/p[4]-1)*100; if(chg<10) return;
+    var vols=[];prev.forEach(function(d){var q=prevMap[d][sym];if(q&&q[6]>0)vols.push(q[6])});
+    if(vols.length<10) return;
+    var avg=vols.reduce(function(x,y){return x+y},0)/vols.length, rel=v0/avg;
+    if(rel<5) return;
+    out.push({sym:sym,price:c,chg:chg,rel:rel,day:d0});
+  });
+  if(missingVol&&!out.length) return {err:"Volume numbers are not saved yet. Tap 1. Rank the market once more, then try again."};
+  out.sort(function(a,b){return b.rel-a.rel});
+  return {rows:out.slice(0,30),day:d0,n:ds.length};
+}
+function renderMomentum(){
+  var R=momentumRows(), el=$("momOut");
+  if(R.err){el.innerHTML="<section class='panel'><p class='msg'>"+R.err+"</p></section>";return}
+  if(!R.rows.length){el.innerHTML="<section class='panel'><h2>Momentum list</h2><p class='note'>No stock passed on "+R.day+". The rules are strict on purpose: price $1 to $20, up 10% or more on the day, and volume 5 times its usual level.</p></section>";return}
+  var h="<section class='panel'><h2>Momentum list for "+R.day+"</h2><p class='note'>Stocks that passed all three numeric rules on the last finished trading day. Check the news for each one yourself: the app can't confirm a news event. Most of these fade quickly. Tap one to see its buy and sell times.</p>";
+  R.rows.forEach(function(x){
+    h+="<div class='mom-row' style='border-top:1px solid var(--line);padding:10px 0;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap'>"+
+       "<div><b style='font-size:17px'>"+x.sym+"</b> <span class='note'>$"+x.price.toFixed(2)+"</span><div class='note'>Up <b>"+x.chg.toFixed(1)+"%</b> · volume <b>"+x.rel.toFixed(1)+"x</b> usual · news? check it</div></div>"+
+       "<button class='btn ghost' type='button' data-an='"+x.sym+"'>Analyze</button></div>";
+  });
+  el.innerHTML=h+"</section>";
 }
 function statsFor(b5){
   var w={};[1,3,5,21].forEach(function(n){var T=analyseT(n,b5,{t0:570,t1:960,B:30});if(!T)return;var z=zones(T);
@@ -1186,6 +1228,8 @@ $("twin").addEventListener("click",function(ev){var b=ev.target.closest("button"
 $("tsort").addEventListener("change",function(){topSort=$("tsort").value;computeRank();renderTop()});
 $("rankBtn").addEventListener("click",rankMarket);
 $("timesBtn").addEventListener("click",addTimes);
+$("momBtn").addEventListener("click",renderMomentum);
+$("momOut").addEventListener("click",function(ev){var b=ev.target.closest("button[data-an]");if(!b)return;$("ticker").value=b.getAttribute("data-an");setTab("sum");fetchAll()});
 $("topOut").addEventListener("click",function(ev){var b=ev.target.closest("button[data-an]");if(!b)return;$("ticker").value=b.getAttribute("data-an");setTab("sum");fetchAll()});
 computeRank();renderTop();
 
